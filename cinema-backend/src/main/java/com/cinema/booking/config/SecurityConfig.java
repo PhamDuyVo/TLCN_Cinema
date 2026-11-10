@@ -46,6 +46,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/showtimes/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/combos/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/cinemas/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
                         .requestMatchers("/promotions/**").permitAll()
                         .requestMatchers("/payments/vnpay-ipn", "/payments/vnpay-return").permitAll()
                         .requestMatchers("/ws/**").permitAll()

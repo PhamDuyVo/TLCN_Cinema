@@ -14,4 +14,5 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
     java.util.Optional<Showtime> lockById(@org.springframework.data.repository.query.Param("id") Long id);
     List<Showtime> findByMovieId(Long movieId);
     List<Showtime> findByMovieIdAndStartTimeBetween(Long movieId, LocalDateTime start, LocalDateTime end);
+    List<Showtime> findByStatusAndStartTimeBetweenOrderByStartTimeAsc(String status, LocalDateTime start, LocalDateTime end);
 }
