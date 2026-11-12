@@ -4,4 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat,Long> {
  List<ShowtimeSeat> findByShowtimeId(Long id);
+ List<ShowtimeSeat> findByStatusAndHoldExpiresAtBefore(String status, java.time.LocalDateTime dateTime);
 }

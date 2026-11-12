@@ -3,7 +3,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 @Entity @Table(name="showtime_seats", uniqueConstraints=@UniqueConstraint(columnNames={"showtime_id","seat_id"}))
-@Getter @Setter @NoArgsConstructor
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ShowtimeSeat {
  @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
  @Column(name="showtime_id",nullable=false) private Long showtimeId;
