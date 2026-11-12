@@ -1,8 +1,10 @@
 package com.cinema.booking.service;
 import com.cinema.booking.dto.BookingDtos.HoldDto;
+import com.cinema.booking.dto.SeatStatusEvent;
 import com.cinema.booking.entity.*;
 import com.cinema.booking.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -14,6 +16,7 @@ public class HoldService {
  private final ShowtimeSeatRepository inventory;
  private final HoldSessionRepository sessions;
  private final TicketRepository tickets;
+ private final ApplicationEventPublisher events;
  public Showtime lock(Long id) {
   if(id==null) throw new IllegalArgumentException("showtimeId is required");
   return showtimes.lockById(id).orElseThrow(()->new IllegalArgumentException("Showtime not found"));
@@ -50,16 +53,32 @@ public class HoldService {
    if(booked.contains(seat) || (row!=null && ("booked".equals(row.getStatus()) || (live(row,now) && !user.equals(row.getHeldByUserId())))))
     throw new IllegalArgumentException("Seat already booked or held");
   }
+  List<Long> previouslyHeld = rows.stream()
+      .filter(r -> user.equals(r.getHeldByUserId()) && "held".equals(r.getStatus()))
+      .map(ShowtimeSeat::getSeatId).toList();
   for(ShowtimeSeat row:rows) if(user.equals(row.getHeldByUserId()) && "held".equals(row.getStatus())) release(row);
   for(Long seat:ids) {
    ShowtimeSeat row=rows.stream().filter(r->r.getSeatId().equals(seat)).findFirst().orElseGet(ShowtimeSeat::new);
    row.setShowtimeId(id); row.setSeatId(seat); row.setStatus("held"); row.setHeldByUserId(user); row.setHoldExpiresAt(session.getExpiresAt()); inventory.save(row);
   }
+  List<Long> unselected = previouslyHeld.stream().filter(s -> !ids.contains(s)).toList();
+  if (!unselected.isEmpty() && events != null) {
+   events.publishEvent(new SeatStatusEvent(id, unselected, "AVAILABLE", null, null));
+  }
+  if (!ids.isEmpty() && events != null) {
+   events.publishEvent(new SeatStatusEvent(id, ids, "HOLDING", user, session.getExpiresAt()));
+  }
   return snapshot(id,user);
  }
  public HoldDto delete(Long id,Long user) {
   requireUser(user); lock(id);
+  List<Long> released = inventory.findByShowtimeId(id).stream()
+      .filter(r->user.equals(r.getHeldByUserId()) && "held".equals(r.getStatus()))
+      .map(ShowtimeSeat::getSeatId).toList();
   inventory.findByShowtimeId(id).stream().filter(r->user.equals(r.getHeldByUserId()) && "held".equals(r.getStatus())).forEach(this::release);
+  if (!released.isEmpty() && events != null) {
+   events.publishEvent(new SeatStatusEvent(id, released, "AVAILABLE", null, null));
+  }
   return snapshot(id,user);
  }
  private void release(ShowtimeSeat r) { r.setStatus("available"); r.setHeldByUserId(null); r.setHoldExpiresAt(null); inventory.save(r); }
@@ -76,7 +95,13 @@ public class HoldService {
   return h.expiresAt();
  }
  public void consume(Long id,Long user) {
+  List<Long> consumed = inventory.findByShowtimeId(id).stream()
+      .filter(r->user.equals(r.getHeldByUserId()) && "held".equals(r.getStatus()))
+      .map(ShowtimeSeat::getSeatId).toList();
   inventory.findByShowtimeId(id).stream().filter(r->user.equals(r.getHeldByUserId()) && "held".equals(r.getStatus())).forEach(r->{r.setStatus("booked");r.setHeldByUserId(null);r.setHoldExpiresAt(null);inventory.save(r);});
+  if (!consumed.isEmpty() && events != null) {
+   events.publishEvent(new SeatStatusEvent(id, consumed, "BOOKED", user, null));
+  }
  }
  public static void requireUser(Long user) { if(user==null) throw new IllegalArgumentException("Authentication required"); }
 }
