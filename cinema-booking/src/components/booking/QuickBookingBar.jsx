@@ -4,7 +4,7 @@ import axiosClient from '../../api/axiosClient';
 import movieApi from '../../api/movieApi';
 import showtimeApi from '../../api/showtimeApi';
 import { dataOf, serverTime, vietnamDate } from '../../utils/booking';
-import { Film, MapPin, Calendar, Clock, Ticket, ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 export const QuickBookingBar = () => {
   const navigate = useNavigate();
@@ -12,8 +12,8 @@ export const QuickBookingBar = () => {
   const [cinemas, setCinemas] = useState([]);
   const [showtimes, setShowtimes] = useState([]);
 
-  const [selectedMovie, setSelectedMovie] = useState('');
   const [selectedCinema, setSelectedCinema] = useState('');
+  const [selectedMovie, setSelectedMovie] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedShowtime, setSelectedShowtime] = useState('');
 
@@ -28,6 +28,9 @@ export const QuickBookingBar = () => {
         if (!active) return;
         setMovies(movieList || []);
         setCinemas(cinemaList || []);
+        if (cinemaList && cinemaList.length > 0) {
+          setSelectedCinema(String(cinemaList[0].id));
+        }
         if (movieList && movieList.length > 0) {
           setSelectedMovie(String(movieList[0].id));
         }
@@ -39,11 +42,10 @@ export const QuickBookingBar = () => {
     };
   }, []);
 
-  // 2. When selectedMovie changes, fetch showtimes for that movie
+  // 2. Fetch showtimes when movie changes
   useEffect(() => {
     if (!selectedMovie) {
       setShowtimes([]);
-      setSelectedCinema('');
       setSelectedDate('');
       setSelectedShowtime('');
       return;
@@ -58,10 +60,6 @@ export const QuickBookingBar = () => {
           (s) => s.status?.toLowerCase() === 'scheduled' && serverTime(s.startTime) > Date.now()
         );
         setShowtimes(upcoming);
-        const venueIds = [...new Set(upcoming.map((s) => String(s.cinemaId)))];
-        if (venueIds.length > 0 && (!selectedCinema || !venueIds.includes(selectedCinema))) {
-          setSelectedCinema(venueIds[0]);
-        }
       })
       .catch(console.error);
 
@@ -70,7 +68,7 @@ export const QuickBookingBar = () => {
     };
   }, [selectedMovie]);
 
-  // 3. Filter available dates for selected movie & cinema
+  // 3. Filter available dates for selected cinema & movie
   const dayOf = (show) => {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Ho_Chi_Minh',
@@ -80,11 +78,11 @@ export const QuickBookingBar = () => {
     }).format(new Date(serverTime(show.startTime)));
   };
 
-  const filteredShowsByCinema = showtimes.filter(
+  const filteredShows = showtimes.filter(
     (s) => !selectedCinema || String(s.cinemaId) === String(selectedCinema)
   );
 
-  const availableDates = [...new Set(filteredShowsByCinema.map(dayOf))].sort();
+  const availableDates = [...new Set(filteredShows.map(dayOf))].sort();
 
   useEffect(() => {
     if (availableDates.length > 0 && (!selectedDate || !availableDates.includes(selectedDate))) {
@@ -96,7 +94,7 @@ export const QuickBookingBar = () => {
   }, [selectedCinema, showtimes]);
 
   // 4. Filter showtimes for selected date
-  const availableShowtimes = filteredShowsByCinema
+  const availableShowtimes = filteredShows
     .filter((s) => dayOf(s) === selectedDate)
     .sort((a, b) => serverTime(a.startTime) - serverTime(b.startTime));
 
@@ -106,11 +104,15 @@ export const QuickBookingBar = () => {
     } else {
       setSelectedShowtime('');
     }
-  }, [selectedDate, selectedCinema]);
+  }, [selectedDate, selectedCinema, showtimes]);
 
   const handleBooking = () => {
     if (selectedShowtime) {
       navigate(`/booking/${selectedShowtime}`);
+    } else if (selectedMovie) {
+      navigate(`/movies/${selectedMovie}`);
+    } else {
+      navigate('/showtimes');
     }
   };
 
@@ -125,129 +127,115 @@ export const QuickBookingBar = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-4">
-      <div className="bg-[#181818]/90 backdrop-blur-md border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
-            <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
-            <Ticket className="w-4 h-4 text-red-500" />
-            <span className="text-white font-extrabold uppercase tracking-wider">Đặt Vé Nhanh</span>
-          </div>
-          <span className="text-[11px] text-zinc-500 hidden sm:inline">
-            Chọn phim & suất chiếu để vào sơ đồ ghế
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
-          {/* Step 1: Select Movie */}
-          <div className="relative">
-            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
-              <Film className="w-3 h-3 text-red-500" /> 1. Chọn Phim
-            </label>
-            <div className="relative">
-              <select
-                value={selectedMovie}
-                onChange={(e) => setSelectedMovie(e.target.value)}
-                className="w-full appearance-none bg-zinc-900 border border-zinc-700 hover:border-zinc-500 rounded-lg px-3 py-2.5 pr-8 text-xs font-semibold text-white focus:outline-none focus:border-red-500 transition cursor-pointer truncate"
-              >
-                <option value="" disabled>-- Chọn phim --</option>
-                {movies.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.title} ({m.ageRating || 'P'})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+    <div className="w-full max-w-7xl mx-auto px-4 -mt-8 relative z-20">
+      {/* Red Cinema Ambient Quick Booking Bar (Nền đen · Card xám · Đỏ nổi bật · Chữ trắng) */}
+      <div className="bg-[#1B1B23] rounded-2xl shadow-2xl p-4 sm:p-5 border border-[#2E2E38] shadow-black/80">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+          {/* Left Title: ĐẶT VÉ NHANH */}
+          <div className="shrink-0 flex items-center pr-2 gap-2.5">
+            <span className="w-2.5 h-6 bg-[#E50914] rounded-sm inline-block" />
+            <h2 className="text-xl sm:text-2xl font-black text-[#F8FAFC] tracking-wider uppercase font-['Bebas_Neue',sans-serif]">
+              ĐẶT VÉ NHANH
+            </h2>
           </div>
 
-          {/* Step 2: Select Cinema */}
-          <div className="relative">
-            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-red-500" /> 2. Chọn Rạp
-            </label>
+          {/* 4 Selectors Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1 w-full">
+            {/* 1. Chọn Rạp */}
             <div className="relative">
               <select
                 value={selectedCinema}
                 onChange={(e) => setSelectedCinema(e.target.value)}
-                disabled={!selectedMovie}
-                className="w-full appearance-none bg-zinc-900 border border-zinc-700 hover:border-zinc-500 rounded-lg px-3 py-2.5 pr-8 text-xs font-semibold text-white focus:outline-none focus:border-red-500 transition cursor-pointer disabled:opacity-40 truncate"
+                className="w-full appearance-none bg-[#121218] border border-[#2E2E38] hover:border-[#E50914] rounded-xl px-3.5 py-2.5 pr-8 text-xs font-semibold text-[#F8FAFC] focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer truncate shadow-sm transition"
               >
-                <option value="" disabled>-- Chọn cụm rạp --</option>
+                <option value="" disabled className="bg-[#1B1B23] text-[#A1A1AA]">
+                  1. Chọn Rạp
+                </option>
                 {cinemas.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
+                  <option key={c.id} value={c.id} className="bg-[#1B1B23] text-white">
+                    1. {c.name}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-[#A1A1AA] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-          </div>
 
-          {/* Step 3: Select Date */}
-          <div className="relative">
-            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-red-500" /> 3. Chọn Ngày
-            </label>
+            {/* 2. Chọn Phim */}
+            <div className="relative">
+              <select
+                value={selectedMovie}
+                onChange={(e) => setSelectedMovie(e.target.value)}
+                className="w-full appearance-none bg-[#121218] border border-[#2E2E38] hover:border-[#E50914] rounded-xl px-3.5 py-2.5 pr-8 text-xs font-semibold text-[#F8FAFC] focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer truncate shadow-sm transition"
+              >
+                <option value="" disabled className="bg-[#1B1B23] text-[#A1A1AA]">
+                  2. Chọn Phim
+                </option>
+                {movies.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-[#1B1B23] text-white">
+                    2. {m.title}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[#A1A1AA] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* 3. Chọn Ngày */}
             <div className="relative">
               <select
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 disabled={!availableDates.length}
-                className="w-full appearance-none bg-zinc-900 border border-zinc-700 hover:border-zinc-500 rounded-lg px-3 py-2.5 pr-8 text-xs font-semibold text-white focus:outline-none focus:border-red-500 transition cursor-pointer disabled:opacity-40 truncate"
+                className="w-full appearance-none bg-[#121218] border border-[#2E2E38] hover:border-[#E50914] rounded-xl px-3.5 py-2.5 pr-8 text-xs font-semibold text-[#F8FAFC] focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer truncate shadow-sm transition disabled:bg-[#09090D] disabled:text-[#71717A] disabled:border-[#202028]"
               >
                 {availableDates.length === 0 ? (
-                  <option value="" disabled>Chưa có lịch</option>
+                  <option value="" disabled className="bg-[#1B1B23] text-[#71717A]">
+                    3. Chưa có lịch
+                  </option>
                 ) : (
                   availableDates.map((day) => {
                     const label = day === vietnamDate() ? 'Hôm nay' : day;
                     return (
-                      <option key={day} value={day}>
-                        {label} ({day.slice(8)}/{day.slice(5, 7)})
+                      <option key={day} value={day} className="bg-[#1B1B23] text-white">
+                        3. {label} ({day.slice(8)}/{day.slice(5, 7)})
                       </option>
                     );
                   })
                 )}
               </select>
-              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-[#A1A1AA] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-          </div>
 
-          {/* Step 4: Select Showtime */}
-          <div className="relative">
-            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
-              <Clock className="w-3 h-3 text-red-500" /> 4. Suất Chiếu
-            </label>
+            {/* 4. Chọn Suất */}
             <div className="relative">
               <select
                 value={selectedShowtime}
                 onChange={(e) => setSelectedShowtime(e.target.value)}
                 disabled={!availableShowtimes.length}
-                className="w-full appearance-none bg-zinc-900 border border-zinc-700 hover:border-zinc-500 rounded-lg px-3 py-2.5 pr-8 text-xs font-semibold text-white focus:outline-none focus:border-red-500 transition cursor-pointer disabled:opacity-40 truncate"
+                className="w-full appearance-none bg-[#121218] border border-[#2E2E38] hover:border-[#E50914] rounded-xl px-3.5 py-2.5 pr-8 text-xs font-semibold text-[#F8FAFC] focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer truncate shadow-sm transition disabled:bg-[#09090D] disabled:text-[#71717A] disabled:border-[#202028]"
               >
                 {availableShowtimes.length === 0 ? (
-                  <option value="" disabled>Hết suất chiếu</option>
+                  <option value="" disabled className="bg-[#1B1B23] text-[#71717A]">
+                    4. Hết suất chiếu
+                  </option>
                 ) : (
                   availableShowtimes.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {formatShowtimeLabel(s)}
+                    <option key={s.id} value={s.id} className="bg-[#1B1B23] text-white">
+                      4. {formatShowtimeLabel(s)}
                     </option>
                   ))
                 )}
               </select>
-              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-[#A1A1AA] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
-          {/* Step 5: CTA Button */}
-          <div className="sm:col-span-2 lg:col-span-1 pt-2 sm:pt-4 lg:pt-3">
+          {/* Action Button: ĐẶT NGAY (Cinema Red Accent) */}
+          <div className="shrink-0 w-full sm:w-auto">
             <button
               onClick={handleBooking}
-              disabled={!selectedShowtime}
-              className="w-full bg-[#e71a0f] hover:bg-[#c41200] disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-white font-extrabold text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-1.5 shadow-lg shadow-red-950/40 transition active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto bg-[#E50914] hover:bg-[#C24132] text-white font-black text-xs uppercase px-7 py-3 rounded-xl shadow-lg shadow-red-900/40 transition transform active:scale-95 cursor-pointer text-center tracking-wider"
             >
-              <span>MUA VÉ NGAY</span>
-              <ChevronRight className="w-4 h-4" />
+              ĐẶT NGAY
             </button>
           </div>
         </div>

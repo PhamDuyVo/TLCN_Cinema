@@ -337,29 +337,29 @@ export const AuthPages = () => {
       <div className="absolute bottom-10 left-10 w-72 h-72 bg-amber-500/5 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Main Card Container */}
-      <div className="w-full max-w-md bg-[#181818] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden relative z-10">
+      <div className="w-full max-w-md bg-[#1B1B23] border border-[#2E2E38] rounded-2xl shadow-2xl overflow-hidden relative z-10">
         {/* Header Branding Banner */}
-        <div className="bg-gradient-to-r from-zinc-950 via-[#181818] to-zinc-950 p-6 border-b border-zinc-800 text-center relative">
-          <div className="inline-flex items-center gap-2 bg-[#e71a0f] text-white px-3.5 py-1 rounded-md font-black text-sm tracking-widest mb-2 shadow-md">
+        <div className="bg-gradient-to-r from-[#121218] via-[#1B1B23] to-[#121218] p-6 border-b border-[#2E2E38] text-center relative">
+          <div className="inline-flex items-center gap-2 bg-[#E50914] text-white px-3.5 py-1 rounded-md font-black text-sm tracking-widest mb-2 shadow-md shadow-red-900/40">
             UTE CINEMA
           </div>
           <h2 className="text-xl font-extrabold text-white tracking-wide">
             {mode === 'login' ? 'TÀI KHOẢN THÀNH VIÊN' : 'ĐĂNG KÝ TÀI KHOẢN MOVIE'}
           </h2>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-[#A1A1AA] mt-1">
             Đặt vé xem phim nhanh chóng • Tích điểm nhận quà UTE
           </p>
         </div>
 
         {/* Tab Switcher: Đăng Nhập vs Đăng Ký */}
-        <div className="flex border-b border-zinc-800 bg-zinc-950/60">
+        <div className="flex border-b border-[#2E2E38] bg-[#121218]">
           <button
             type="button"
             onClick={() => handleTabChange('login')}
-            className={`flex-1 py-3 text.sm font-bold transition duration-300 cursor-pointer flex items-center justify-center gap-2 ${
+            className={`flex-1 py-3 text-sm font-bold transition duration-300 cursor-pointer flex items-center justify-center gap-2 ${
               mode === 'login'
-                ? 'text-[#e71a0f] border-b-2 border-[#e71a0f] bg-[#181818]'
-                : 'text-zinc-400 hover:text-white'
+                ? 'text-[#E50914] border-b-2 border-[#E50914] bg-[#1B1B23]'
+                : 'text-[#A1A1AA] hover:text-white'
             }`}
           >
             <LogIn className="w-4 h-4" />
@@ -370,8 +370,8 @@ export const AuthPages = () => {
             onClick={() => handleTabChange('register')}
             className={`flex-1 py-3 text-sm font-bold transition duration-300 cursor-pointer flex items-center justify-center gap-2 ${
               mode === 'register'
-                ? 'text-[#e71a0f] border-b-2 border-[#e71a0f] bg-[#181818]'
-                : 'text-zinc-400 hover:text-white'
+                ? 'text-[#E50914] border-b-2 border-[#E50914] bg-[#1B1B23]'
+                : 'text-[#A1A1AA] hover:text-white'
             }`}
           >
             <Sparkles className="w-4 h-4" />

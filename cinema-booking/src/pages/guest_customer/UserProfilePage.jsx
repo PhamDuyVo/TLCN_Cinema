@@ -84,13 +84,13 @@ export const UserProfilePage = () => {
 
   if (!user) {
     return (
-      <div className="max-w-md mx-auto my-20 p-8 bg-[#181818] border border-zinc-800 rounded-2xl text-center">
-        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+      <div className="max-w-md mx-auto my-20 p-8 bg-[#1B1B23] border border-[#2E2E38] rounded-2xl text-center shadow-2xl">
+        <AlertCircle className="w-12 h-12 text-[#E50914] mx-auto mb-3" />
         <h2 className="text-xl font-bold text-white mb-2">Bạn chưa đăng nhập</h2>
-        <p className="text-xs text-zinc-400 mb-6">Vui lòng đăng nhập để xem thông tin cá nhân và quản lý tài khoản.</p>
+        <p className="text-xs text-[#A1A1AA] mb-6">Vui lòng đăng nhập để xem thông tin cá nhân và quản lý tài khoản.</p>
         <Link
           to="/login"
-          className="px-6 py-2.5 bg-[#e71a0f] hover:bg-[#c41200] text-white font-bold text-sm rounded-lg shadow-md inline-block"
+          className="px-6 py-2.5 bg-[#E50914] hover:bg-[#C24132] text-white font-bold text-sm rounded-xl shadow-md shadow-red-900/30 inline-block"
         >
           ĐĂNG NHẬP NGAY
         </Link>
@@ -99,12 +99,12 @@ export const UserProfilePage = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 font-sans">
+    <div className="max-w-4xl mx-auto px-4 py-10 font-sans text-[#F8FAFC]">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-zinc-900 via-[#181818] to-zinc-950 border border-zinc-800 rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+      <div className="bg-gradient-to-r from-[#121218] via-[#1B1B23] to-[#121218] border border-[#2E2E38] rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
         <div className="flex items-center gap-5">
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-zinc-800 border-2 border-[#e71a0f] overflow-hidden flex items-center justify-center text-white text-2xl font-bold uppercase shadow-lg">
+            <div className="w-20 h-20 rounded-full bg-[#121218] border-2 border-[#E50914] overflow-hidden flex items-center justify-center text-white text-2xl font-bold uppercase shadow-lg">
               {user.avatar_url ? (
                 <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" />
               ) : (
@@ -112,7 +112,7 @@ export const UserProfilePage = () => {
               )}
             </div>
             {user.is_email_verified ? (
-              <span className="absolute bottom-0 right-0 bg-emerald-500 text-white p-1 rounded-full border-2 border-[#181818]" title="Email đã xác thực">
+              <span className="absolute bottom-0 right-0 bg-emerald-500 text-white p-1 rounded-full border-2 border-[#1B1B23]" title="Email đã xác thực">
                 <CheckCircle2 className="w-4 h-4" />
               </span>
             ) : null}
@@ -121,11 +121,11 @@ export const UserProfilePage = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-extrabold text-white">{user.full_name}</h1>
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-red-950 border border-red-800 text-red-400 rounded">
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-red-950/80 border border-red-800 text-red-400 rounded">
                 {user.role === 'admin' ? 'Quản trị viên' : user.role === 'staff' ? 'Nhân viên Rạp' : 'Thành viên UTE Cinema'}
               </span>
             </div>
-            <p className="text-sm text-zinc-400 mt-0.5">{user.email}</p>
+            <p className="text-sm text-[#A1A1AA] mt-0.5">{user.email}</p>
             <p className="text-xs text-zinc-500 mt-1">
               Tham gia từ: {new Date(user.created_at || Date.now()).toLocaleDateString('vi-VN')}
             </p>
@@ -135,14 +135,14 @@ export const UserProfilePage = () => {
         <div className="flex items-center gap-3">
           <Link
             to="/my-tickets"
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs rounded-lg border border-zinc-700 flex items-center gap-2 transition"
+            className="px-4 py-2 bg-[#121218] hover:bg-[#252530] text-[#F8FAFC] font-semibold text-xs rounded-xl border border-[#2E2E38] flex items-center gap-2 transition"
           >
-            <Ticket className="w-4 h-4 text-red-500" />
+            <Ticket className="w-4 h-4 text-[#E50914]" />
             Vé Của Tôi
           </Link>
           <button
             onClick={logout}
-            className="px-4 py-2 bg-red-950/80 hover:bg-red-900 text-red-200 font-semibold text-xs rounded-lg border border-red-800 flex items-center gap-2 transition cursor-pointer"
+            className="px-4 py-2 bg-red-950/80 hover:bg-red-900 text-red-200 font-semibold text-xs rounded-xl border border-red-800 flex items-center gap-2 transition cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             Đăng Xuất
@@ -151,7 +151,7 @@ export const UserProfilePage = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex border-b border-zinc-800 mb-6">
+      <div className="flex border-b border-[#2E2E38] mb-6">
         <button
           onClick={() => {
             setActiveTab('info');
@@ -160,8 +160,8 @@ export const UserProfilePage = () => {
           }}
           className={`py-3 px-6 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 ${
             activeTab === 'info'
-              ? 'border-[#e71a0f] text-[#e71a0f] bg-[#181818]'
-              : 'border-transparent text-zinc-400 hover:text-white'
+              ? 'border-[#E50914] text-[#E50914] bg-[#1B1B23]'
+              : 'border-transparent text-[#A1A1AA] hover:text-white'
           }`}
         >
           <User className="w-4 h-4" />
@@ -175,8 +175,8 @@ export const UserProfilePage = () => {
           }}
           className={`py-3 px-6 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 ${
             activeTab === 'password'
-              ? 'border-[#e71a0f] text-[#e71a0f] bg-[#181818]'
-              : 'border-transparent text-zinc-400 hover:text-white'
+              ? 'border-[#E50914] text-[#E50914] bg-[#1B1B23]'
+              : 'border-transparent text-[#A1A1AA] hover:text-white'
           }`}
         >
           <Key className="w-4 h-4" />
@@ -199,12 +199,12 @@ export const UserProfilePage = () => {
       )}
 
       {/* Tab Content */}
-      <div className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-[#1B1B23] border border-[#2E2E38] rounded-2xl p-6 shadow-xl">
         {activeTab === 'info' ? (
           /* ================= FORM CẬP NHẬT PROFILE ================= */
           <form onSubmit={handleUpdateProfile} className="space-y-5">
-            <h3 className="text-lg font-bold text-white border-b border-zinc-800 pb-3 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[#e71a0f]" />
+            <h3 className="text-lg font-bold text-white border-b border-[#2E2E38] pb-3 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#E50914]" />
               CHỈNH SỬA THÔNG TIN CÁ NHÂN
             </h3>
 
@@ -220,7 +220,7 @@ export const UserProfilePage = () => {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#e71a0f]"
+                    className="w-full bg-[#121218] border border-[#2E2E38] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#E50914]"
                   />
                 </div>
               </div>
@@ -235,7 +235,7 @@ export const UserProfilePage = () => {
                     type="email"
                     disabled
                     value={user.email}
-                    className="w-full bg-zinc-950 border border-zinc-800 text-zinc-500 rounded-lg pl-10 pr-4 py-2.5 text-sm cursor-not-allowed"
+                    className="w-full bg-[#09090D] border border-[#202028] text-zinc-500 rounded-xl pl-10 pr-4 py-2.5 text-sm cursor-not-allowed"
                   />
                 </div>
               </div>

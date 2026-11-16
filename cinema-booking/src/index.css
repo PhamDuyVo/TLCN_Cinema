@@ -2,28 +2,72 @@
 
 @layer base {
   :root {
-    --cgv-red: #e71a0f;
-    --cgv-red-dark: #b81007;
-    --cgv-cream: #fdfcf0;
-    --cgv-dark-bg: #121212;
-    --cgv-card-bg: #1e1e1e;
-    --cgv-gold: #e0a838;
+    /* Premium Red Cinema + Cinematic Ambient Gradient System */
+    --bg-primary: #09090D;
+    --bg-secondary: #121218;
+    --surface-card: #1B1B23;
+    --cinema-red: #E50914;
+    --burgundy: #590D22;
+    --wine-red: #881337;
+    --warm-red: #C24132;
+    --text-primary: #F8FAFC;
+    --text-secondary: #A1A1AA;
+    --border-subtle: #2E2E38;
   }
 
   body {
-    background-color: #121212;
-    color: #f3f4f6;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: #09090D;
+    background-image:
+      radial-gradient(
+        ellipse at 15% 10%,
+        rgba(136, 19, 55, 0.20),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse at 85% 30%,
+        rgba(229, 9, 20, 0.11),
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 95%,
+        rgba(89, 13, 34, 0.14),
+        transparent 60%
+      );
+    background-attachment: fixed;
+    color: #F8FAFC;
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
     margin: 0;
     padding: 0;
+    min-height: 100vh;
   }
 }
 
-/* UTE Cinema Retro Marquee Header Title */
+/* Ambient Cinema Background Class for standalone containers */
+.cinema-background {
+  background:
+    radial-gradient(
+      ellipse at 15% 10%,
+      rgba(136, 19, 55, 0.20),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse at 85% 30%,
+      rgba(229, 9, 20, 0.11),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 95%,
+      rgba(89, 13, 34, 0.14),
+      transparent 60%
+    ),
+    #09090D;
+}
+
+/* Red Cinema Spotlight Section Divider */
 .cgv-title-section {
   position: relative;
   text-align: center;
-  margin: 2rem 0;
+  margin: 3rem 0 2rem 0;
 }
 
 .cgv-title-section::before,
@@ -31,27 +75,27 @@
   content: '';
   position: absolute;
   top: 50%;
-  width: 30%;
+  width: 25%;
   height: 2px;
-  background: linear-gradient(to right, transparent, #e71a0f, transparent);
+  background: linear-gradient(to right, transparent, rgba(229, 9, 20, 0.6), transparent);
 }
 
 .cgv-title-section::before {
-  left: 0;
+  left: 5%;
 }
 
 .cgv-title-section::after {
-  right: 0;
+  right: 5%;
 }
 
-/* Badge Độ tuổi UTE Cinema */
+/* Badge Phân Loại Độ Tuổi Chuẩn Quốc Gia */
 .badge-age-P {
-  background-color: #2ecc71;
+  background-color: #10b981;
   color: #ffffff;
 }
 
 .badge-age-K {
-  background-color: #3498db;
+  background-color: #0284c7;
   color: #ffffff;
 }
 
@@ -69,25 +113,25 @@
 
 .badge-age-C18,
 .badge-age-T18 {
-  background-color: #e71a0f;
+  background-color: #E50914;
   color: #ffffff;
 }
 
-/* Scrollbar mượt mà */
+/* Scrollbar mượt mà phong cách Cinema Dark */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #18181b;
+  background: #09090D;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: #2E2E38;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #e71a0f;
+  background: #881337;
 }

@@ -8,7 +8,6 @@ import {
   User,
   LogOut,
   Film,
-  Sparkles,
   MapPin,
   Calendar,
   Tag,
@@ -16,7 +15,7 @@ import {
   X,
   Phone,
   Popcorn,
-  ChevronDown,
+  Search,
 } from 'lucide-react';
 
 export const Header = () => {
@@ -26,6 +25,7 @@ export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cinemas, setCinemas] = useState([]);
   const [selectedCinema, setSelectedCinema] = useState('');
+  const [searchHeader, setSearchHeader] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -43,190 +43,232 @@ export const Header = () => {
     };
   }, []);
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchHeader.trim()) {
+      navigate(`/movies?q=${encodeURIComponent(searchHeader.trim())}`);
+    } else {
+      navigate('/movies');
+    }
+  };
+
   const navLinks = [
-    { name: 'TRANG CHỦ', path: '/' },
-    { name: 'LỊCH CHIẾU', path: '/showtimes', icon: Calendar },
-    { name: 'PHIM', path: '/movies', icon: Film },
-    { name: 'CỤM RẠP & GIÁ VÉ', path: '/cinemas', icon: MapPin },
-    { name: 'ƯU ĐÃI', path: '/promotions', icon: Tag, highlight: true },
+    { name: 'Chọn Rạp', path: '/cinemas', icon: MapPin },
+    { name: 'Lịch Chiếu', path: '/showtimes', icon: Calendar },
+    { name: 'Phim', path: '/movies', icon: Film },
+    { name: 'Khuyến Mãi', path: '/promotions', icon: Tag, highlight: true },
   ];
 
   return (
-    <header className="w-full bg-[#121212] border-b border-[#282828] sticky top-0 z-50 shadow-xl">
-      {/* 1. Utility Top Bar (Cinestar Standard) */}
-      <div className="bg-[#0a0a0a] border-b border-[#1f1f1f] text-xs text-zinc-400 py-1.5 px-4">
+    <header className="w-full sticky top-0 z-50 shadow-2xl">
+      {/* 1. Clean Utility Bar */}
+      <div className="bg-[#09090D] border-b border-white/5 text-xs text-[#A1A1AA] py-1.5 px-4 hidden sm:block">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          {/* Left: Hotline & System */}
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 text-zinc-300">
-              <Phone className="w-3.5 h-3.5 text-red-500" /> CSKH: <strong className="text-white">1900 2321</strong>
+            <span className="flex items-center gap-1.5 text-[#F8FAFC]">
+              <Phone className="w-3.5 h-3.5 text-[#E50914]" /> CSKH: <strong className="text-white">1900 2321</strong>
             </span>
             <span className="text-zinc-700 hidden sm:inline">|</span>
             <Link
               to="/cinemas"
-              className="hidden sm:flex items-center gap-1 hover:text-red-400 transition"
+              className="hidden sm:flex items-center gap-1 hover:text-[#E50914] transition"
             >
-              <MapPin className="w-3.5 h-3.5 text-red-500" /> Hệ thống Rạp toàn quốc
+              <MapPin className="w-3.5 h-3.5 text-[#E50914]" /> Hệ thống Rạp toàn quốc
             </Link>
           </div>
-
-          {/* Right: User status or Shortcuts */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 text-[#A1A1AA]">
             {user?.role === 'admin' && (
-              <Link to="/admin" className="text-amber-400 font-semibold hover:underline">
-                [Trang Quản Trị Admin]
+              <Link to="/admin" className="text-[#E50914] font-bold hover:underline">
+                [Admin]
               </Link>
             )}
             {user?.role === 'staff' && (
-              <Link to="/staff/pos" className="text-blue-400 font-semibold hover:underline">
-                [Phân Hệ Nhân Viên POS]
+              <Link to="/staff/pos" className="text-rose-300 font-bold hover:underline">
+                [POS]
               </Link>
             )}
+          </div>
+        </div>
+      </div>
 
+      {/* 2. Main Navigation Bar (Red Cinema Dark Ambient) */}
+      <div className="bg-[#09090D]/90 backdrop-blur-md border-b border-white/10 text-[#F8FAFC]">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          {/* Brand Logo UTE CINEMA */}
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
+            <div className="bg-[#E50914] text-white px-2.5 py-1 rounded-lg font-black text-xl tracking-tight shadow-md group-hover:scale-105 transition transform shadow-red-900/40">
+              UTE
+            </div>
+            <span className="font-black text-2xl tracking-wider text-white">
+              CINEMA
+            </span>
+          </Link>
+
+          {/* Quick Action Buttons: [ĐẶT VÉ NGAY] [ĐẶT BẮP NƯỚC] */}
+          <div className="hidden md:flex items-center gap-2.5 shrink-0">
+            {/* Cinema Red: Đặt Vé Ngay */}
+            <button
+              onClick={() => navigate('/showtimes')}
+              className="bg-[#E50914] hover:bg-[#C24132] text-white font-black px-4 py-2 rounded-lg text-xs uppercase flex items-center gap-1.5 shadow-md shadow-red-900/40 transition transform active:scale-95 cursor-pointer"
+            >
+              <Ticket className="w-3.5 h-3.5 text-white" />
+              <span>ĐẶT VÉ NGAY</span>
+            </button>
+
+            {/* Wine Red: Đặt Bắp Nước */}
+            <button
+              onClick={() => navigate('/booking/1')}
+              className="bg-[#881337] hover:bg-[#590D22] text-white font-bold px-4 py-2 rounded-lg text-xs uppercase flex items-center gap-1.5 shadow-md shadow-rose-950/40 transition transform active:scale-95 cursor-pointer border border-[#881337]/50"
+            >
+              <Popcorn className="w-3.5 h-3.5 text-rose-200" />
+              <span>ĐẶT BẮP NƯỚC</span>
+            </button>
+          </div>
+
+          {/* Dark Surface Search Box */}
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex-1 max-w-xs relative hidden lg:block"
+          >
+            <input
+              type="text"
+              value={searchHeader}
+              onChange={(e) => setSearchHeader(e.target.value)}
+              placeholder="Tìm phim, rạp..."
+              className="w-full bg-[#1B1B23] text-[#F8FAFC] placeholder-[#A1A1AA] rounded-full pl-4 pr-9 py-1.5 text-xs outline-none shadow-inner border border-[#2E2E38] focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914]"
+            />
+            <button
+              type="submit"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A1A1AA] hover:text-[#E50914]"
+              aria-label="Tìm kiếm"
+            >
+              <Search className="w-3.5 h-3.5" />
+            </button>
+          </form>
+
+          {/* Right: User Login / Profile status */}
+          <div className="flex items-center gap-3">
             {user ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 text-xs">
                 <Link
                   to="/my-tickets"
-                  className="hover:text-red-400 transition flex items-center gap-1 font-semibold text-amber-300"
+                  className="hover:text-red-300 transition flex items-center gap-1 font-bold text-[#E50914]"
                 >
                   <Ticket className="w-3.5 h-3.5" /> Vé Của Tôi
                 </Link>
                 <span className="text-zinc-700">|</span>
                 <Link
                   to="/profile"
-                  className="font-medium text-zinc-200 hover:text-white flex items-center gap-1"
+                  className="font-medium text-[#F8FAFC] hover:text-white flex items-center gap-1"
                 >
-                  <User className="w-3.5 h-3.5 text-red-500" /> {user.full_name || user.email}
+                  <User className="w-3.5 h-3.5 text-[#E50914]" /> {user.full_name || user.email}
                 </Link>
                 <button
                   onClick={logout}
-                  className="hover:text-red-400 flex items-center gap-1 text-zinc-400 transition ml-1 cursor-pointer"
+                  className="hover:text-red-400 flex items-center gap-1 text-[#A1A1AA] transition ml-1 cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" /> Thoát
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-xs">
                 <Link
                   to="/login?mode=login"
-                  className="hover:text-white transition font-medium text-zinc-300"
+                  className="hover:text-[#E50914] transition font-medium text-[#F8FAFC] flex items-center gap-1"
                 >
-                  Đăng Nhập
-                </Link>
-                <span className="text-zinc-600">/</span>
-                <Link
-                  to="/login?mode=register"
-                  className="hover:text-amber-300 transition font-medium text-amber-400"
-                >
-                  Đăng Ký
+                  <User className="w-3.5 h-3.5 text-[#A1A1AA]" /> Đăng nhập
                 </Link>
               </div>
             )}
+
+            {/* Mobile Menu Toggle Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg bg-[#1B1B23] border border-[#2E2E38] text-[#A1A1AA] hover:text-white"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* 2. Main Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        {/* Left: Brand Logo UTE Cinema Style */}
-        <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="bg-[#e71a0f] text-white px-2.5 py-1.5 rounded-lg font-black text-xl tracking-tighter shadow-md group-hover:bg-[#c41200] transition">
-              UTE
+        {/* 3. Sub-header Navigation Row */}
+        <div className="bg-[#09090D]/95 border-t border-white/5 px-4 py-2 hidden lg:block">
+          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs font-semibold text-[#A1A1AA]">
+            <div className="flex items-center gap-6">
+              {navLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname === link.path;
+                return (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={`flex items-center gap-1.5 transition ${
+                      isActive
+                        ? 'text-[#E50914] font-bold'
+                        : link.highlight
+                        ? 'text-rose-400 hover:text-white'
+                        : 'text-[#A1A1AA] hover:text-white'
+                    }`}
+                  >
+                    {Icon && <Icon className="w-3.5 h-3.5 opacity-80" />}
+                    <span>{link.name}</span>
+                  </Link>
+                );
+              })}
             </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-xl tracking-wider text-white">CINEMA</span>
-              <span className="text-[9px] text-zinc-400 tracking-widest uppercase -mt-1 font-semibold">
-                CULTURES & MOVIES
-              </span>
-            </div>
-          </Link>
 
-          {/* Cinestar Cinema Quick Location Selector */}
-          {cinemas.length > 0 && (
-            <div className="hidden xl:flex items-center relative">
-              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300">
-                <MapPin className="w-3.5 h-3.5 text-red-500" />
+            {/* Fast Cinema Switcher */}
+            {cinemas.length > 0 && (
+              <div className="flex items-center gap-1 text-[11px] text-[#A1A1AA]">
+                <MapPin className="w-3 h-3 text-[#E50914]" />
                 <select
                   value={selectedCinema}
                   onChange={(e) => {
                     setSelectedCinema(e.target.value);
                     navigate('/showtimes');
                   }}
-                  className="bg-transparent text-xs text-white focus:outline-none cursor-pointer pr-2"
+                  className="bg-transparent text-[#F8FAFC] hover:text-white focus:outline-none cursor-pointer pr-1 font-medium"
                 >
-                  <option value="" className="bg-zinc-900 text-zinc-300">
-                    -- Chọn Rạp --
+                  <option value="" className="bg-[#1B1B23] text-[#A1A1AA]">
+                    Chọn rạp gần bạn
                   </option>
                   {cinemas.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-zinc-900 text-white">
+                    <option key={c.id} value={c.id} className="bg-[#1B1B23] text-white">
                       {c.name}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Center Menu Links */}
-        <nav className="hidden lg:flex items-center gap-6 font-bold text-xs sm:text-sm">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = location.pathname === link.path;
-            return (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`flex items-center gap-1.5 py-1 transition-colors ${
-                  isActive
-                    ? 'text-red-500 border-b-2 border-red-500 font-extrabold'
-                    : link.highlight
-                    ? 'text-amber-400 hover:text-amber-300'
-                    : 'text-zinc-200 hover:text-red-500'
-                }`}
-              >
-                {Icon && (
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive
-                        ? 'text-red-500'
-                        : link.highlight
-                        ? 'text-amber-400'
-                        : 'text-zinc-400'
-                    }`}
-                  />
-                )}
-                <span>{link.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Right: Action CTAs (Cinestar standard) */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/showtimes')}
-            className="bg-[#e71a0f] hover:bg-[#c41200] text-white px-5 py-2.5 rounded-lg font-black text-xs uppercase flex items-center gap-2 shadow-lg shadow-red-950/50 transition transform active:scale-95 cursor-pointer"
-          >
-            <Ticket className="w-4 h-4" />
-            <span>MUA VÉ NGAY</span>
-          </button>
-
-          {/* Mobile Menu Hamburger Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white"
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 3. Mobile Navigation Drawer */}
+      {/* 4. Mobile Navigation Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#161616] border-b border-zinc-800 px-4 py-4 space-y-3">
+        <div className="lg:hidden bg-[#09090D] border-b border-white/10 px-4 py-4 space-y-3">
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/showtimes');
+              }}
+              className="flex-1 bg-[#E50914] text-white font-black py-2 rounded-lg text-xs uppercase"
+            >
+              ĐẶT VÉ NGAY
+            </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/booking/1');
+              }}
+              className="flex-1 bg-[#881337] text-white font-bold py-2 rounded-lg text-xs uppercase"
+            >
+              ĐẶT BẮP NƯỚC
+            </button>
+          </div>
+
           <nav className="flex flex-col space-y-2">
             {navLinks.map((link) => {
               const Icon = link.icon;
@@ -238,8 +280,8 @@ export const Header = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm ${
                     isActive
-                      ? 'bg-red-600/20 text-red-500'
-                      : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                      ? 'bg-[#E50914]/20 text-[#E50914]'
+                      : 'text-[#A1A1AA] hover:bg-[#1B1B23] hover:text-white'
                   }`}
                 >
                   {Icon && <Icon className="w-4 h-4" />}
@@ -248,13 +290,6 @@ export const Header = () => {
               );
             })}
           </nav>
-
-          <div className="pt-3 border-t border-zinc-800 flex justify-between items-center text-xs text-zinc-400">
-            <span>Hotline: 1900 2321</span>
-            <Link to="/cinemas" className="text-red-400">
-              Hệ thống rạp &rarr;
-            </Link>
-          </div>
         </div>
       )}
     </header>

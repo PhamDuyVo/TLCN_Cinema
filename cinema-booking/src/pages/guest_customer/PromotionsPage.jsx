@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Tag, Copy, Check, Ticket, Sparkles, Gift, Clock, Calendar, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Tag, Copy, Check, Ticket, Sparkles, Gift, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function PromotionsPage() {
   const [filter, setFilter] = useState('all');
@@ -14,13 +14,13 @@ export default function PromotionsPage() {
 
   const vouchers = [
     {
-      code: 'CHAOBANMOI',
+      code: 'UTECINEMA20',
       title: 'Chào Bạn Mới - Giảm 20.000đ',
       discount: 'Giảm 20.000 VNĐ',
       minSpend: 'Đơn từ 80.000đ',
       expiry: 'Hạn dùng: 31/12/2026',
       badge: 'HOT NHẤT',
-      badgeColor: 'bg-red-600',
+      badgeColor: 'bg-[#E50914] text-white',
       description: 'Dành riêng cho khách hàng lần đầu đặt vé tại UTE Cinema. Áp dụng cho mọi suất chiếu 2D và 3D.',
       category: 'voucher',
     },
@@ -31,7 +31,7 @@ export default function PromotionsPage() {
       minSpend: 'Đơn từ 100.000đ',
       expiry: 'Hạn dùng: 31/12/2026',
       badge: 'THÀNH VIÊN',
-      badgeColor: 'bg-amber-600',
+      badgeColor: 'bg-[#881337] text-white',
       description: 'Giảm 20% tổng đơn hàng vé và bắp nước khi đặt vé trực tuyến. Áp dụng các ngày trong tuần.',
       category: 'voucher',
     },
@@ -42,7 +42,7 @@ export default function PromotionsPage() {
       minSpend: 'Đơn từ 150.000đ',
       expiry: 'Hạn dùng: 31/12/2026',
       badge: 'TIẾT KIỆM',
-      badgeColor: 'bg-purple-600',
+      badgeColor: 'bg-[#C24132] text-white',
       description: 'Mã ưu đãi đặc biệt cho nhóm bạn và gia đình khi đặt từ 2 vé trở lên kèm combo bắp nước.',
       category: 'voucher',
     },
@@ -51,7 +51,7 @@ export default function PromotionsPage() {
   const programs = [
     {
       id: 'c-student',
-      title: "C'STUDENT - Đồng Giá 45.000đ Học Sinh Sinh Viên",
+      title: "UTE STUDENT - Đồng Giá 45.000đ Học Sinh Sinh Viên",
       subtitle: 'Áp dụng cho Học sinh - Sinh viên & Giới trẻ dưới 22 tuổi',
       image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
       category: 'ticket',
@@ -65,7 +65,7 @@ export default function PromotionsPage() {
     },
     {
       id: 'c-wednesday',
-      title: "C'WEDNESDAY - Thứ 4 Vui Vẻ Đồng Giá 50.000đ",
+      title: "UTE WEDNESDAY - Thứ 4 Vui Vẻ Đồng Giá 50.000đ",
       subtitle: 'Ngày vàng xem phim - Đồng giá cho tất cả mọi người',
       image: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=800&q=80',
       category: 'ticket',
@@ -92,36 +92,34 @@ export default function PromotionsPage() {
     },
     {
       id: 'member-club',
-      title: 'C’MEMBER CLUB - Tích Điểm Đổi Vé Miễn Phí',
+      title: 'UTE MEMBER CLUB - Tích Điểm Đổi Vé Miễn Phí',
       subtitle: 'Quyền lợi độc quyền cho thành viên UTE Cinema',
       image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80',
       category: 'member',
       tag: 'THÀNH VIÊN',
       details: [
-        'Tích lũy 5% đến 10% giá trị mọi đơn hàng vé và bắp nước vào tài khoản thành viên.',
-        'Tặng ngay 01 vé xem phim 2D miễn phí và 01 combo bắp nước nhân dịp sinh nhật.',
-        'Nhận thông báo và được quyền ưu tiên đặt vé các bom tấn Hollywood trước 48h.',
+        'Tích lũy 5% - 10% điểm thưởng trên mọi giao dịch mua vé và combo bắp nước.',
+        'Tặng vé xem phim miễn phí vào tháng sinh nhật thành viên.',
+        'Ưu tiên đặt vé sớm cho các siêu bom tấn chiếu rạp.',
       ],
     },
   ];
 
-  const filteredPrograms = filter === 'all'
-    ? programs
-    : programs.filter((p) => p.category === filter);
+  const filteredPrograms = filter === 'all' ? programs : programs.filter((p) => p.category === filter);
 
   return (
-    <div className="bg-[#121212] min-h-screen text-zinc-100 pb-20">
-      {/* 1. Header Hero Banner */}
-      <div className="relative bg-gradient-to-r from-red-950 via-zinc-900 to-black border-b border-zinc-800 py-16 px-4">
-        <div className="max-w-6xl mx-auto text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-600/20 text-red-400 border border-red-500/30 rounded-full text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-4 h-4" /> UTE Cinema Promotion Center
-          </div>
+    <main className="min-h-screen text-[#F8FAFC] pb-20">
+      {/* 1. Header Banner */}
+      <div className="bg-gradient-to-b from-[#121218] to-transparent border-b border-[#2E2E38] py-12 px-4 text-center">
+        <div className="max-w-4xl mx-auto space-y-3">
+          <span className="text-[#E50914] text-xs font-black tracking-widest uppercase inline-flex items-center gap-1.5 bg-[#E50914]/10 px-3.5 py-1 rounded-full border border-[#E50914]/30">
+            <Sparkles className="w-4 h-4 text-[#E50914]" /> ƯU ĐÃI ĐẶC BIỆT
+          </span>
           <h1 className="text-3xl md:text-5xl font-black text-white tracking-wide uppercase">
-            Ưu Đãi & Khuyến Mãi <span className="text-red-500">Đặc Quyền</span>
+            Ưu Đãi & Khuyến Mãi <span className="text-[#E50914]">Đặc Quyền</span>
           </h1>
-          <p className="text-zinc-400 max-w-2xl mx-auto text-sm md:text-base">
-            Khám phá những chương trình ưu đãi vé xem phim cực hot, voucher giảm giá trực tiếp và combo bắp nước hấp dẫn chỉ có tại UTE Cinema!
+          <p className="text-[#A1A1AA] max-w-2xl mx-auto text-sm md:text-base">
+            Khám phá những chương trình ưu đãi vé xem phim cực hot, voucher giảm giá trực tiếp và combo bắp nước hấp dẫn tại UTE Cinema!
           </p>
         </div>
       </div>
@@ -131,50 +129,50 @@ export default function PromotionsPage() {
         <section>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <Gift className="w-6 h-6 text-red-500" />
+              <Gift className="w-6 h-6 text-[#E50914]" />
               <h2 className="text-2xl font-black tracking-wide uppercase text-white">Mã Giảm Giá Trực Tuyến</h2>
             </div>
-            <span className="text-xs text-zinc-500">Nhập mã tại bước thanh toán để được giảm</span>
+            <span className="text-xs text-[#A1A1AA]">Nhập mã tại bước thanh toán để được giảm</span>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {vouchers.map((v) => (
               <div
                 key={v.code}
-                className="relative bg-gradient-to-b from-[#1c1c1c] to-[#141414] border border-zinc-800 hover:border-red-500/50 rounded-2xl p-6 transition-all shadow-xl group flex flex-col justify-between"
+                className="relative bg-[#1B1B23] border border-[#2E2E38] hover:border-[#E50914]/80 rounded-2xl p-6 transition-all shadow-2xl group flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full text-white ${v.badgeColor}`}>
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${v.badgeColor}`}>
                       {v.badge}
                     </span>
-                    <span className="text-xs text-zinc-500 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" /> {v.expiry}
+                    <span className="text-xs text-[#A1A1AA] flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-[#E50914]" /> {v.expiry}
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-red-400 transition">
+                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-[#E50914] transition">
                     {v.title}
                   </h3>
-                  <p className="text-2xl font-black text-amber-400 mb-2">{v.discount}</p>
-                  <p className="text-xs text-zinc-400 mb-4">{v.description}</p>
-                  <div className="text-[11px] text-zinc-500 mb-4 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Điều kiện: {v.minSpend}
+                  <p className="text-2xl font-black text-[#E50914] mb-2">{v.discount}</p>
+                  <p className="text-xs text-zinc-300 mb-4">{v.description}</p>
+                  <div className="text-[11px] text-[#A1A1AA] mb-4 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Điều kiện: {v.minSpend}
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-zinc-800/80">
-                  <div className="flex items-center gap-2 bg-[#0d0d0d] p-2 rounded-xl border border-dashed border-zinc-700">
-                    <div className="flex-1 font-mono font-black text-red-400 text-center tracking-widest text-sm">
+                <div className="pt-4 border-t border-[#2E2E38]">
+                  <div className="flex items-center gap-2 bg-[#121218] p-2 rounded-xl border border-dashed border-[#2E2E38]">
+                    <div className="flex-1 font-mono font-black text-[#E50914] text-center tracking-widest text-sm">
                       {v.code}
                     </div>
                     <button
                       onClick={() => copyToClipboard(v.code)}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                      className="px-3.5 py-1.5 bg-[#E50914] hover:bg-[#C24132] text-white text-xs font-black rounded-lg transition flex items-center gap-1 cursor-pointer shadow"
                     >
                       {copiedCode === v.code ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-emerald-300" /> Đã sao chép!
+                          <Check className="w-3.5 h-3.5 text-white" /> Đã chép!
                         </>
                       ) : (
                         <>
@@ -185,7 +183,7 @@ export default function PromotionsPage() {
                   </div>
                   <Link
                     to="/showtimes"
-                    className="mt-3 block text-center text-xs font-bold text-zinc-400 hover:text-white transition"
+                    className="mt-3 block text-center text-xs font-bold text-rose-300 hover:text-white transition"
                   >
                     Dùng mã ngay tại lịch chiếu &rarr;
                   </Link>
@@ -198,90 +196,79 @@ export default function PromotionsPage() {
         {/* 3. Filter Categories Tabs */}
         <section className="pt-6">
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <Ticket className="w-6 h-6 text-red-500" />
-              <h2 className="text-2xl font-black tracking-wide uppercase text-white">Chương Trình Khuyến Mãi</h2>
-            </div>
-            <div className="flex gap-2 flex-wrap">
+            <h2 className="text-2xl font-black tracking-wide uppercase text-white flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-[#E50914]" /> Chương Trình Khuyến Mãi
+            </h2>
+
+            <div className="flex items-center gap-2 bg-[#121218] p-1 rounded-xl border border-[#2E2E38]">
               {[
-                { id: 'all', label: 'Tất Cả' },
-                { id: 'ticket', label: 'Giá Vé Ưu Đãi' },
+                { id: 'all', label: 'Tất cả' },
+                { id: 'ticket', label: 'Ưu đãi Vé' },
                 { id: 'combo', label: 'Bắp Nước' },
-                { id: 'member', label: 'Thành Viên' },
-              ].map((t) => (
+                { id: 'member', label: 'Thành viên' },
+              ].map((tab) => (
                 <button
-                  key={t.id}
-                  onClick={() => setFilter(t.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition ${
-                    filter === t.id
-                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-                      : 'bg-zinc-800/80 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                  key={tab.id}
+                  onClick={() => setFilter(tab.id)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                    filter === tab.id
+                      ? 'bg-[#E50914] text-white shadow-md'
+                      : 'text-[#A1A1AA] hover:text-white'
                   }`}
                 >
-                  {t.label}
+                  {tab.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Program Cards Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {filteredPrograms.map((item) => (
+          <div className="grid md:grid-cols-2 gap-8">
+            {filteredPrograms.map((p) => (
               <div
-                key={item.id}
-                className="bg-[#181818] border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition flex flex-col justify-between"
+                key={p.id}
+                className="bg-[#1B1B23] border border-[#2E2E38] hover:border-[#E50914]/70 rounded-2xl overflow-hidden shadow-2xl transition duration-300 flex flex-col justify-between"
               >
-                <div className="relative h-48 w-full overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-transparent to-transparent" />
-                  <span className="absolute top-4 left-4 bg-red-600/90 backdrop-blur-sm text-white text-[11px] font-black uppercase px-3 py-1 rounded-full">
-                    {item.tag}
-                  </span>
+                <div>
+                  <div className="relative h-48 w-full overflow-hidden">
+                    <img
+                      src={p.image}
+                      alt={p.title}
+                      className="w-full h-full object-cover hover:scale-105 transition duration-500"
+                    />
+                    <span className="absolute top-3 left-3 bg-[#881337] text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow">
+                      {p.tag}
+                    </span>
+                  </div>
+
+                  <div className="p-6">
+                    <h3 className="text-xl font-black text-white leading-snug">{p.title}</h3>
+                    <p className="text-xs text-[#E50914] mt-1 font-semibold">{p.subtitle}</p>
+
+                    <div className="mt-4 space-y-2 border-t border-[#2E2E38] pt-4">
+                      {p.details.map((d, idx) => (
+                        <p key={idx} className="text-xs text-zinc-300 flex items-start gap-2 leading-relaxed">
+                          <span className="text-[#E50914] font-bold">•</span>
+                          <span>{d}</span>
+                        </p>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-6 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
-                    <p className="text-sm text-zinc-400 mb-4">{item.subtitle}</p>
-                    <ul className="space-y-1.5 text-xs text-zinc-400 mb-6">
-                      {item.details.map((detail, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="text-red-500 font-bold">•</span>
-                          <span>{detail}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="pt-4 border-t border-zinc-800 flex justify-between items-center">
-                    <span className="text-xs text-zinc-500">Áp dụng trên toàn hệ thống</span>
-                    <Link
-                      to="/showtimes"
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition inline-flex items-center gap-1.5"
-                    >
-                      Đặt Vé Ngay <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
+                <div className="p-6 pt-0">
+                  <Link
+                    to="/showtimes"
+                    className="w-full bg-[#E50914] hover:bg-[#C24132] text-white text-xs font-black py-3 rounded-xl flex items-center justify-center gap-2 transition shadow-md shadow-red-900/30 cursor-pointer"
+                  >
+                    <span>ĐẶT VÉ VÀ HƯỞNG ƯU ĐÃI</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
         </section>
-
-        {/* 4. Bottom Support Notice */}
-        <div className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 text-center text-xs text-zinc-400">
-          <p className="font-semibold text-zinc-300 mb-1">Cần hỗ trợ về mã giảm giá hoặc chương trình ưu đãi?</p>
-          <p>
-            Vui lòng liên hệ Tổng đài CSKH: <strong className="text-red-500">1900 2321</strong> (8:00 - 22:00) hoặc gửi email đến{' '}
-            <strong className="text-red-500">cskh@utecinema.vn</strong> để được hướng dẫn chi tiết.
-          </p>
-        </div>
       </div>
-    </div>
+    </main>
   );
 }
-

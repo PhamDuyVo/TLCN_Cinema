@@ -61,14 +61,15 @@ export function TicketHistoryPage() {
     }).catch(e => { if (active) setError(errorMessage(e)); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [retry]);
-  return <main className="max-w-5xl mx-auto px-4 py-8 text-zinc-100">
-    <h1 className="text-2xl font-bold mb-4">Vé của tôi</h1>
-    <button className="underline mb-4" disabled={loading} onClick={() => setRetry(v => v + 1)}>Cập nhật danh sách</button>
-    {loading ? <p role="status">Đang tải vé…</p> : error ? <p role="alert" className="text-red-400">{error}</p> : !bookings.length ? <p>Bạn chưa có vé đã đặt. <Link to="/" className="underline">Chọn phim</Link></p> : bookings.map(booking => <article key={booking.bookingCode} className="bg-[#181818] border border-zinc-800 rounded-xl p-6 mb-5">
-      <h2 className="text-xl font-bold">{booking.movieTitle}</h2>
-      <p>{booking.cinemaName} · {booking.hallName} · {formatDateTime(booking.showtimeStart)}</p>
-      <p>Ghế: {booking.seatNumbers?.join(', ')}</p><p>{booking.status} · {formatCurrency(booking.finalAmount)}</p>
-      <Link className="text-red-400 underline" to={`/booking-success?bookingCode=${encodeURIComponent(booking.bookingCode)}`}>{booking.bookingCode} — Xem chi tiết</Link>
+  return <main className="max-w-5xl mx-auto px-4 py-8 text-[#F8FAFC]">
+    <h1 className="text-2xl font-black mb-4">Vé của tôi</h1>
+    <button className="text-[#E50914] underline mb-4 cursor-pointer text-sm font-semibold" disabled={loading} onClick={() => setRetry(v => v + 1)}>Cập nhật danh sách</button>
+    {loading ? <p role="status">Đang tải vé…</p> : error ? <p role="alert" className="text-red-400">{error}</p> : !bookings.length ? <p>Bạn chưa có vé đã đặt. <Link to="/" className="text-[#E50914] underline">Chọn phim</Link></p> : bookings.map(booking => <article key={booking.bookingCode} className="bg-[#1B1B23] border border-[#2E2E38] rounded-2xl p-6 mb-5 shadow-xl">
+      <h2 className="text-xl font-black text-white">{booking.movieTitle}</h2>
+      <p className="text-[#A1A1AA] text-sm mt-1">{booking.cinemaName} · {booking.hallName} · {formatDateTime(booking.showtimeStart)}</p>
+      <p className="text-sm mt-1">Ghế: <strong className="text-white">{booking.seatNumbers?.join(', ')}</strong></p>
+      <p className="text-sm mt-1">{booking.status} · <strong className="text-[#E50914] font-black">{formatCurrency(booking.finalAmount)}</strong></p>
+      <Link className="text-[#E50914] hover:text-rose-300 underline font-bold mt-2 inline-block text-sm" to={`/booking-success?bookingCode=${encodeURIComponent(booking.bookingCode)}`}>{booking.bookingCode} — Xem chi tiết</Link>
       <TicketCodes booking={booking} />
     </article>)}
   </main>;

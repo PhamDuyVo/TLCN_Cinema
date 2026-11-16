@@ -61,6 +61,7 @@ function BookingSession({ showtimeId }) {
         showtimeApi.getHold(showtimeId).then(dataOf),
         bookingApi.getCombos().then(dataOf).catch(() => []),
       ]);
+
       if (!alive.current) return;
       setMap(seats);
       setHold(timedHold(current));
@@ -81,14 +82,15 @@ function BookingSession({ showtimeId }) {
   useEffect(() => {
     alive.current = true;
     Promise.resolve().then(refresh);
-    const timer = setInterval(refresh, 5000);
+    const interval = setInterval(refresh, 5000);
     const onVisible = () => {
       if (!document.hidden) refresh();
     };
     document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       alive.current = false;
-      clearInterval(timer);
+      clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [refresh]);
@@ -129,32 +131,11 @@ function BookingSession({ showtimeId }) {
       ? own.filter((id) => id !== seat.id)
       : [...own, seat.id];
     if (next.length > 8) {
-      setError('Tối đa 8 ghế trong một lần đặt.');
+      setError('Mỗi lượt đặt tối đa 8 ghế.');
       return;
     }
     save(next, next.length === 0);
   }
-
-  const chosen = map?.seats.filter((seat) => own.includes(seat.id)) || [];
-  const rows = Object.groupBy
-    ? Object.groupBy(map?.seats || [], (seat) => seat.seatRow)
-    : (map?.seats || []).reduce((all, seat) => {
-        (all[seat.seatRow] ||= []).push(seat);
-        return all;
-      }, {});
-  const show = map?.showtime;
-
-  // Calculate totals
-  const totalSeatsPrice = chosen.reduce((sum, s) => sum + Number(s.finalPrice || 0), 0);
-  const selectedCombosList = combos
-    .filter((c) => (quantities[c.id] || 0) > 0)
-    .map((c) => ({
-      ...c,
-      quantity: quantities[c.id],
-      total: Number(c.price || 0) * quantities[c.id],
-    }));
-  const totalCombosPrice = selectedCombosList.reduce((sum, c) => sum + c.total, 0);
-  const grandTotal = totalSeatsPrice + totalCombosPrice;
 
   const handleContinue = () => {
     try {
@@ -163,53 +144,76 @@ function BookingSession({ showtimeId }) {
     navigate(`/checkout?showtimeId=${showtimeId}`);
   };
 
+  const show = map?.showtime;
+
+  const rows = (map?.seats || []).reduce((acc, seat) => {
+    (acc[seat.seatRow] ||= []).push(seat);
+    return acc;
+  }, {});
+
+  const chosen = (map?.seats || []).filter((s) => own.includes(s.id));
+  const totalSeatAmount = chosen.reduce((acc, s) => acc + (s.finalPrice || 0), 0);
+
+  const selectedCombosList = combos
+    .filter((c) => (quantities[c.id] || 0) > 0)
+    .map((c) => ({
+      ...c,
+      quantity: quantities[c.id],
+      total: c.price * quantities[c.id],
+    }));
+
+  const totalComboAmount = selectedCombosList.reduce((acc, c) => acc + c.total, 0);
+  const grandTotal = totalSeatAmount + totalComboAmount;
+
   return (
-    <main className="bg-[#121212] min-h-screen py-8 text-zinc-100">
+    <main className="min-h-screen text-zinc-100 py-8 pb-20">
       <div className="max-w-7xl mx-auto px-4">
-        {/* 1. Header Bar */}
-        <header className="bg-[#181818] border border-zinc-800 rounded-2xl p-5 flex justify-between items-center flex-wrap gap-4 mb-6 shadow-xl">
+        {/* Header Breadcrumbs & Status Bar */}
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-6 pb-4 border-b border-[#2E2E38]">
           <div>
-            <span className="text-[11px] font-black uppercase text-red-500 tracking-wider flex items-center gap-1.5 mb-1">
-              <Ticket className="w-3.5 h-3.5" /> BƯỚC 1: CHỌN GHẾ & BẮP NƯỚC
+            <span className="text-[#E50914] text-xs font-black tracking-widest uppercase">
+              BƯỚC 1 / 2: CHỌN GHẾ & BẮP NƯỚC
             </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white">
-              {show?.movieTitle || 'ĐẶT VÉ XEM PHIM'}
+            <h1 className="text-2xl sm:text-3xl font-black text-white mt-0.5">
+              {show?.movieTitle || 'Đang tải thông tin phim…'}
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
-              <span className="text-zinc-200 font-semibold">{show?.cinemaName}</span>
-              <span>•</span>
-              <span>{show?.hallName}</span>
-              <span>•</span>
-              <span className="text-amber-400 font-medium">{formatDateTime(show?.startTime)}</span>
+            <p className="text-xs text-[#A1A1AA] mt-1">
+              {show?.cinemaName} • {show?.hallName} • {formatDateTime(show?.startTime)}
             </p>
           </div>
 
-          <div className="text-right bg-zinc-900/90 border border-zinc-800 px-4 py-2.5 rounded-xl">
-            <p className="text-[11px] text-zinc-400 flex items-center justify-end gap-1 font-medium">
-              <Clock className="w-3.5 h-3.5 text-red-500" /> Thời gian giữ ghế
-            </p>
-            <strong className="text-xl sm:text-2xl font-black text-red-500 tracking-wider">
-              {hold?.expiresAt ? formattedTime : 'Chưa giữ ghế'}
-            </strong>
-          </div>
-        </header>
+          {/* Countdown Clock */}
+          {own.length > 0 && !expired && (
+            <div className="flex items-center gap-2 bg-[#1B1B23] border border-[#E50914] px-4 py-2 rounded-xl shadow-lg shadow-red-900/30">
+              <Clock className="w-4 h-4 text-[#E50914] animate-pulse" />
+              <div className="text-right">
+                <span className="text-[10px] text-zinc-400 block -mb-1">Thời gian giữ ghế</span>
+                <span className="text-lg font-black text-[#E50914] font-mono tracking-wider">
+                  {formattedTime}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {error && (
-          <div role="alert" className="text-red-400 bg-red-950/30 border border-red-900/50 p-4 rounded-xl mb-6 text-sm flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={refresh} className="underline text-xs cursor-pointer font-bold">
+          <div role="alert" className="bg-red-950/80 border border-red-800 p-4 rounded-xl mb-6 text-sm flex items-center justify-between text-red-200">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" /> {error}
+            </span>
+            <button onClick={refresh} className="underline text-xs cursor-pointer font-bold text-white">
               Tải lại trạng thái
             </button>
           </div>
         )}
 
         {expired && (
-          <div role="alert" className="bg-red-950/80 border border-red-800 p-4 rounded-xl mb-6 text-sm flex items-center justify-between">
+          <div role="alert" className="bg-red-950/80 border border-red-800 p-4 rounded-xl mb-6 text-sm flex items-center justify-between text-red-200">
             <span>Phiên giữ ghế đã hết hạn. Vui lòng bấm để chọn lại ghế.</span>
             <button
               disabled={busy || !online}
               onClick={() => save([])}
-              className="px-3 py-1 bg-red-600 rounded-lg text-xs font-bold text-white hover:bg-red-700 disabled:opacity-40 cursor-pointer"
+              className="px-3 py-1 bg-[#E50914] rounded-lg text-xs font-bold text-white hover:bg-[#C24132] disabled:opacity-40 cursor-pointer"
             >
               Bắt đầu phiên mới
             </button>
@@ -218,7 +222,7 @@ function BookingSession({ showtimeId }) {
 
         {!map ? (
           <div className="py-24 text-center text-zinc-400">
-            <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <div className="w-8 h-8 border-4 border-[#E50914] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm">Đang tải sơ đồ phòng chiếu…</p>
           </div>
         ) : (
@@ -226,7 +230,7 @@ function BookingSession({ showtimeId }) {
             {/* Left 2 Columns: Seat Matrix + Bắp Nước */}
             <div className="lg:col-span-2 space-y-8">
               {/* SECTION 1: SEAT MAP */}
-              <section className="bg-[#181818] border border-zinc-800 rounded-2xl p-5 sm:p-6 overflow-hidden shadow-xl">
+              <section className="bg-[#1B1B23] border border-[#2E2E38] rounded-2xl p-5 sm:p-6 overflow-hidden shadow-2xl">
                 <div className="flex justify-between items-center mb-6">
                   <div className="flex gap-2">
                     {['2D', '3D'].map((mode) => (
@@ -234,17 +238,17 @@ function BookingSession({ showtimeId }) {
                         key={mode}
                         aria-pressed={view === mode}
                         onClick={() => setView(mode)}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        className={`px-4 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
                           view === mode
-                            ? 'bg-[#e71a0f] text-white shadow-md shadow-red-950/50'
-                            : 'bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-700/80'
+                            ? 'bg-[#E50914] text-white shadow-md shadow-red-900/40'
+                            : 'bg-[#121218] text-[#A1A1AA] hover:text-white border border-[#2E2E38]'
                         }`}
                       >
                         {mode}
                       </button>
                     ))}
                   </div>
-                  <span className="text-[11px] text-zinc-500 hidden sm:inline">
+                  <span className="text-[11px] text-[#E50914] font-semibold hidden sm:inline">
                     Chọn tối đa 8 ghế/lần đặt
                   </span>
                 </div>
@@ -254,8 +258,8 @@ function BookingSession({ showtimeId }) {
                     <div className="min-w-max p-4">
                       {/* Cinema Curved Screen */}
                       <div className="relative mb-14 text-center">
-                        <div className="w-3/4 mx-auto h-2 bg-gradient-to-r from-transparent via-red-500 to-transparent rounded-full shadow-[0_0_20px_rgba(231,26,15,0.6)]" />
-                        <span className="inline-block mt-2 text-[10px] uppercase tracking-widest text-zinc-500 font-bold">
+                        <div className="w-3/4 mx-auto h-2 bg-gradient-to-r from-transparent via-[#E50914] to-transparent rounded-full shadow-[0_0_25px_rgba(229,9,20,0.6)]" />
+                        <span className="inline-block mt-2 text-[10px] uppercase tracking-widest text-[#E50914] font-bold">
                           MÀN HÌNH CHIẾU
                         </span>
                       </div>
@@ -266,7 +270,7 @@ function BookingSession({ showtimeId }) {
                           .sort(([a], [b]) => a.localeCompare(b))
                           .map(([row, seats]) => (
                             <div key={row} className="flex gap-2 items-center justify-center">
-                              <span className="w-6 text-center text-xs font-bold text-zinc-500">
+                              <span className="w-6 text-center text-xs font-bold text-zinc-400">
                                 {row}
                               </span>
                               <div
@@ -290,12 +294,12 @@ function BookingSession({ showtimeId }) {
                                       busy || expired || !online || !canSelectSeat(seat, own)
                                     }
                                     onClick={() => toggle(seat)}
-                                    className={`h-8 rounded-lg border text-xs font-bold transition transform active:scale-95 disabled:opacity-30 cursor-pointer ${
+                                    className={`h-8 rounded-lg border text-xs font-black transition transform active:scale-95 disabled:opacity-30 cursor-pointer ${
                                       own.includes(seat.id)
-                                        ? 'bg-[#e71a0f] border-red-500 text-white shadow-md shadow-red-950/60'
+                                        ? 'bg-[#E50914] border-[#E50914] text-white shadow-md shadow-red-900/40'
                                         : canSelectSeat(seat, own)
-                                        ? 'bg-zinc-900 border-amber-600/70 text-zinc-200 hover:border-amber-400'
-                                        : 'bg-zinc-800 border-zinc-700 text-zinc-500 cursor-not-allowed'
+                                        ? 'bg-[#121218] border-[#2E2E38] text-zinc-300 hover:border-[#E50914] hover:text-white'
+                                        : 'bg-[#09090D] border-[#1C1C24] text-zinc-600 cursor-not-allowed'
                                     }`}
                                   >
                                     {seat.seatCol}
@@ -319,34 +323,34 @@ function BookingSession({ showtimeId }) {
                 )}
 
                 {/* Legend */}
-                <div className="mt-8 pt-4 border-t border-zinc-800/80 flex flex-wrap justify-center items-center gap-6 text-xs text-zinc-400">
+                <div className="mt-8 pt-4 border-t border-[#2E2E38] flex flex-wrap justify-center items-center gap-6 text-xs text-[#A1A1AA]">
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-[#e71a0f] border border-red-500" />
-                    <span>Đang chọn</span>
+                    <span className="w-4 h-4 rounded bg-[#E50914] border border-[#E50914]" />
+                    <span className="font-semibold text-white">Đang chọn</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-zinc-900 border border-amber-600" />
+                    <span className="w-4 h-4 rounded bg-[#121218] border border-[#2E2E38]" />
                     <span>Ghế trống</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-zinc-800 border border-zinc-700 opacity-60" />
-                    <span>Đã bán / Đang giữ</span>
+                    <span className="w-4 h-4 rounded bg-[#09090D] border border-[#1C1C24] opacity-60" />
+                    <span className="text-zinc-600">Đã bán / Đang giữ</span>
                   </div>
                 </div>
               </section>
 
-              {/* SECTION 2: BẮP NƯỚC (CINESTAR CONCESSION MENU) */}
-              <section className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 shadow-xl">
-                <div className="flex items-center justify-between mb-5 pb-3 border-b border-zinc-800">
+              {/* SECTION 2: BẮP NƯỚC (CONCESSION MENU) */}
+              <section className="bg-[#1B1B23] border border-[#2E2E38] rounded-2xl p-6 shadow-2xl">
+                <div className="flex items-center justify-between mb-5 pb-3 border-b border-[#2E2E38]">
                   <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                      <Popcorn className="w-5 h-5 text-amber-400" /> CHỌN BẮP NƯỚC (COMBO ƯU ĐÃI)
+                    <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                      <Popcorn className="w-5 h-5 text-[#E50914]" /> CHỌN BẮP NƯỚC (COMBO ƯU ĐÃI)
                     </h2>
-                    <p className="text-xs text-zinc-400 mt-1">
+                    <p className="text-xs text-[#A1A1AA] mt-1">
                       Thưởng thức bắp rang bơ nóng hổi và nước ngọt mát lạnh, nhận tại quầy Concession trước giờ chiếu
                     </p>
                   </div>
-                  <span className="hidden sm:inline-block text-[11px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full uppercase">
+                  <span className="hidden sm:inline-block text-[11px] font-bold text-[#E50914] bg-[#E50914]/10 border border-[#E50914]/30 px-3 py-1 rounded-full uppercase">
                     Tiết kiệm đến 20%
                   </span>
                 </div>
@@ -358,25 +362,25 @@ function BookingSession({ showtimeId }) {
                     {combos.map((combo) => (
                       <div
                         key={combo.id}
-                        className="bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 rounded-xl p-3.5 flex gap-3.5 items-center justify-between transition group"
+                        className="bg-[#121218] border border-[#2E2E38] hover:border-[#E50914]/60 rounded-xl p-3.5 flex gap-3.5 items-center justify-between transition group"
                       >
                         <img
                           src={getComboImage(combo)}
                           alt={combo.name}
-                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover shrink-0 border border-zinc-800"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover shrink-0 border border-[#2E2E38]"
                         />
                         <div className="flex-1 min-w-0 pr-2">
-                          <h3 className="font-bold text-xs sm:text-sm text-white line-clamp-1 group-hover:text-amber-400 transition">
+                          <h3 className="font-bold text-xs sm:text-sm text-white line-clamp-1 group-hover:text-[#E50914] transition">
                             {combo.name}
                           </h3>
-                          <p className="text-[11px] text-zinc-400 line-clamp-2 mt-0.5 leading-snug">
+                          <p className="text-[11px] text-[#A1A1AA] line-clamp-2 mt-0.5 leading-snug">
                             {combo.description}
                           </p>
-                          <p className="text-amber-400 font-extrabold text-xs sm:text-sm mt-1.5">
+                          <p className="text-[#E50914] font-extrabold text-xs sm:text-sm mt-1.5">
                             {formatCurrency(combo.price)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0 bg-zinc-800/80 p-1 rounded-lg border border-zinc-700/60">
+                        <div className="flex items-center gap-1.5 shrink-0 bg-[#1B1B23] p-1 rounded-lg border border-[#2E2E38]">
                           <button
                             type="button"
                             disabled={busy || expired || !online || !(quantities[combo.id] > 0)}
@@ -387,7 +391,7 @@ function BookingSession({ showtimeId }) {
                                 [combo.id]: Math.max(0, (q[combo.id] || 0) - 1),
                               }))
                             }
-                            className="w-7 h-7 rounded bg-zinc-700 hover:bg-zinc-600 disabled:opacity-30 text-white flex items-center justify-center font-bold text-sm cursor-pointer"
+                            className="w-7 h-7 rounded bg-[#121218] hover:bg-[#252530] border border-[#2E2E38] disabled:opacity-30 text-white flex items-center justify-center font-bold text-sm cursor-pointer"
                           >
                             −
                           </button>
@@ -404,7 +408,7 @@ function BookingSession({ showtimeId }) {
                                 [combo.id]: (q[combo.id] || 0) + 1,
                               }))
                             }
-                            className="w-7 h-7 rounded bg-[#e71a0f] hover:bg-[#c41200] disabled:opacity-30 text-white flex items-center justify-center font-bold text-sm cursor-pointer"
+                            className="w-7 h-7 rounded bg-[#881337] hover:bg-[#590D22] disabled:opacity-30 text-white flex items-center justify-center font-bold text-sm cursor-pointer"
                           >
                             +
                           </button>
@@ -417,31 +421,31 @@ function BookingSession({ showtimeId }) {
             </div>
 
             {/* Right Column: Aside Order Summary */}
-            <aside className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 h-fit sticky top-24 space-y-5 shadow-2xl">
-              <h2 className="font-black text-sm uppercase tracking-wider text-white border-b border-zinc-800 pb-3 flex items-center justify-between">
+            <aside className="bg-[#1B1B23] border border-[#2E2E38] rounded-2xl p-6 h-fit sticky top-24 space-y-5 shadow-2xl">
+              <h2 className="font-black text-sm uppercase tracking-wider text-white border-b border-[#2E2E38] pb-3 flex items-center justify-between">
                 <span>THÔNG TIN ĐẶT VÉ</span>
-                <span className="text-[10px] text-zinc-500 font-normal">Tạm tính</span>
+                <span className="text-[10px] text-[#E50914] font-bold">Tạm tính</span>
               </h2>
 
               {/* Show Information */}
               <div className="space-y-1.5 text-xs text-zinc-300">
                 <p className="font-bold text-sm text-white line-clamp-1">{show?.movieTitle}</p>
-                <p className="text-zinc-400">{show?.cinemaName} • {show?.hallName}</p>
-                <p className="text-amber-400 font-medium">{formatDateTime(show?.startTime)}</p>
+                <p className="text-[#A1A1AA]">{show?.cinemaName} • {show?.hallName}</p>
+                <p className="text-[#E50914] font-semibold">{formatDateTime(show?.startTime)}</p>
               </div>
 
               {/* Selected Seats List */}
-              <div className="pt-3 border-t border-zinc-800 space-y-2">
-                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex justify-between">
+              <div className="pt-3 border-t border-[#2E2E38] space-y-2">
+                <p className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex justify-between">
                   <span>Ghế ngồi:</span>
-                  <span className="text-white">{chosen.length} ghế</span>
+                  <span className="text-[#E50914]">{chosen.length} ghế</span>
                 </p>
                 {chosen.length > 0 ? (
                   <div className="space-y-1 text-xs">
                     {chosen.map((s) => (
-                      <div key={s.id} className="flex justify-between items-center text-zinc-300">
+                      <div key={s.id} className="flex justify-between items-center text-zinc-200">
                         <span>Ghế {s.seatNumber} ({s.seatType})</span>
-                        <span className="font-semibold">{formatCurrency(s.finalPrice)}</span>
+                        <span className="font-semibold text-white">{formatCurrency(s.finalPrice)}</span>
                       </div>
                     ))}
                   </div>
@@ -451,21 +455,21 @@ function BookingSession({ showtimeId }) {
               </div>
 
               {/* Selected Combos List */}
-              <div className="pt-3 border-t border-zinc-800 space-y-2">
-                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex justify-between">
+              <div className="pt-3 border-t border-[#2E2E38] space-y-2">
+                <p className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex justify-between">
                   <span>Bắp nước:</span>
-                  <span className="text-amber-400">
+                  <span className="text-[#E50914]">
                     {selectedCombosList.reduce((acc, c) => acc + c.quantity, 0)} món
                   </span>
                 </p>
                 {selectedCombosList.length > 0 ? (
                   <div className="space-y-1.5 text-xs">
                     {selectedCombosList.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center text-zinc-300">
+                      <div key={item.id} className="flex justify-between items-center text-zinc-200">
                         <span className="truncate pr-2">
                           {item.quantity}x {item.name}
                         </span>
-                        <span className="font-semibold text-amber-400 shrink-0">
+                        <span className="font-semibold text-[#E50914] shrink-0">
                           {formatCurrency(item.total)}
                         </span>
                       </div>
@@ -477,10 +481,10 @@ function BookingSession({ showtimeId }) {
               </div>
 
               {/* Grand Total */}
-              <div className="pt-4 border-t border-zinc-800">
+              <div className="pt-4 border-t border-[#2E2E38]">
                 <div className="flex justify-between items-end mb-4">
                   <span className="text-xs text-zinc-400">Tổng thanh toán:</span>
-                  <span className="text-2xl font-black text-[#e71a0f]">
+                  <span className="text-2xl font-black text-[#E50914]">
                     {formatCurrency(grandTotal)}
                   </span>
                 </div>
@@ -488,7 +492,7 @@ function BookingSession({ showtimeId }) {
                 <button
                   disabled={!chosen.length || busy || expired || !online}
                   onClick={handleContinue}
-                  className="w-full bg-[#e71a0f] hover:bg-[#c41200] text-white rounded-xl py-3.5 font-black text-xs uppercase tracking-wider shadow-lg shadow-red-950/50 transition transform active:scale-95 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed text-center"
+                  className="w-full bg-[#E50914] hover:bg-[#C24132] disabled:bg-[#1C1C24] disabled:text-zinc-600 text-white rounded-xl py-3.5 font-black text-xs uppercase tracking-wider shadow-lg shadow-red-900/40 transition transform active:scale-95 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed text-center"
                 >
                   TIẾP TỤC THANH TOÁN
                 </button>
@@ -496,7 +500,7 @@ function BookingSession({ showtimeId }) {
                 <button
                   disabled={!chosen.length || busy}
                   onClick={() => save([], true)}
-                  className="w-full text-zinc-500 hover:text-zinc-300 text-xs mt-3 transition disabled:opacity-40 cursor-pointer"
+                  className="w-full text-zinc-400 hover:text-white text-xs mt-3 transition disabled:opacity-40 cursor-pointer"
                 >
                   Bỏ chọn tất cả ghế
                 </button>
