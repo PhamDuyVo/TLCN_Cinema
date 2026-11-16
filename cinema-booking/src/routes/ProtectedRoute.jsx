@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
-export const ProtectedRoute = ({ allowedRoles }) => {
+export const ProtectedRoute = ({ allowedRoles, loginPath = "/login", deniedPath = "/" }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -13,11 +13,11 @@ export const ProtectedRoute = ({ allowedRoles }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={deniedPath} replace />;
   }
 
   return <Outlet />;

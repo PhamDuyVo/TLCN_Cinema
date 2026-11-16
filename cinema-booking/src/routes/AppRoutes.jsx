@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import AdminLoginPage from '../pages/admin/AdminLoginPage';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import CustomerLayout from '../layouts/CustomerLayout';
 import StaffLayout from '../layouts/StaffLayout';
 import AdminLayout from '../layouts/AdminLayout';
@@ -6,11 +7,15 @@ import ProtectedRoute from './ProtectedRoute';
 import { ROLES } from '../utils/constants';
 
 import HomePage from '../pages/guest_customer/HomePage';
+import MoviesPage from '../pages/guest_customer/MoviesPage';
 import MovieDetailPage from '../pages/guest_customer/MovieDetailPage';
 import BookingSeatPage from '../pages/guest_customer/BookingSeatPage';
 import CheckoutPage from '../pages/guest_customer/CheckoutPage';
 import BookingSuccessPage from '../pages/guest_customer/BookingSuccessPage';
 import AuthPages from '../pages/guest_customer/AuthPages';
+import ShowtimesPage from '../pages/guest_customer/ShowtimesPage';
+import CinemasPage from '../pages/guest_customer/CinemasPage';
+import PromotionsPage from '../pages/guest_customer/PromotionsPage';
 
 import UserProfilePage from '../pages/guest_customer/UserProfilePage';
 
@@ -36,13 +41,18 @@ import {
 } from '../pages/admin/AdminPages';
 
 export const AppRoutes = () => {
+  const hostname = window.location.hostname;
+  const portal = hostname === 'admin.cinema.localhost' ? 'admin' : hostname === 'staff.cinema.localhost' ? 'staff' : 'customer';
   return (
     <Routes>
       {/* 1. Customer & Guest Routes */}
-      <Route element={<CustomerLayout />}>
+      {portal === 'customer' && <Route element={<CustomerLayout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path="/movies" element={<HomePage />} />
+        <Route path="/movies" element={<MoviesPage />} />
         <Route path="/movies/:id" element={<MovieDetailPage />} />
+        <Route path="/showtimes" element={<ShowtimesPage />} />
+        <Route path="/cinemas" element={<CinemasPage />} />
+        <Route path="/promotions" element={<PromotionsPage />} />
         <Route path="/login" element={<AuthPages />} />
         <Route path="/register" element={<AuthPages />} />
 
@@ -56,9 +66,11 @@ export const AppRoutes = () => {
         </Route>
       </Route>
 
+      }
       {/* 2. Staff Routes */}
+      {portal === 'staff' && <>
       <Route path="/staff/login" element={<StaffLoginPage />} />
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.STAFF, ROLES.ADMIN]} />}>
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.STAFF]} loginPath="/staff/login" deniedPath="/staff/login" />}>
         <Route element={<StaffLayout />}>
           <Route path="/staff/pos" element={<PosBookingPage />} />
           <Route path="/staff/checkin" element={<QrCheckInPage />} />
@@ -66,8 +78,11 @@ export const AppRoutes = () => {
         </Route>
       </Route>
 
+      </>}
       {/* 3. Admin Routes */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
+      {portal === 'admin' && <>
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} loginPath="/admin/login" deniedPath="/admin/login" />}>
         <Route element={<AdminLayout />}>
           <Route path="/admin" element={<DashboardPage />} />
           <Route path="/admin/movies" element={<ManageMoviesPage />} />
@@ -78,6 +93,8 @@ export const AppRoutes = () => {
           <Route path="/admin/bookings" element={<ManageBookingsPage />} />
         </Route>
       </Route>
+      </>}
+      <Route path="*" element={<Navigate to={portal === 'admin' ? '/admin' : portal === 'staff' ? '/staff/pos' : '/'} replace />} />
     </Routes>
   );
 };
