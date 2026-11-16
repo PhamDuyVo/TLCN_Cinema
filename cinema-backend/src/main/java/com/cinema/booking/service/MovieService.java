@@ -39,6 +39,8 @@ public class MovieService {
         movie.setDescription(input.getDescription());
         movie.setDirector(input.getDirector());
         movie.setCast(input.getCast());
+        movie.setCountry(input.getCountry());
+        movie.setLanguage(input.getLanguage());
         movie.setStatus(input.getStatus());
         // Media URLs are changed only through verified media endpoints. Preserve legacy URLs.
         return mapToDto(movieRepository.save(movie));
@@ -84,6 +86,8 @@ public class MovieService {
                 .description(m.getDescription())
                 .director(m.getDirector())
                 .cast(m.getCast())
+                .country(m.getCountry())
+                .language(m.getLanguage())
                 .status(m.getStatus())
                 .genres(m.getGenres().stream().map(Genre::getName).collect(Collectors.toList()))
                 .build();

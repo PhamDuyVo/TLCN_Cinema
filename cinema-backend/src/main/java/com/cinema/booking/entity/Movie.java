@@ -42,6 +42,12 @@ public class Movie {
     @Builder.Default
     private String ageRating = "P";
 
+    @Column(length = 100)
+    private String country;
+
+    @Column(length = 100)
+    private String language;
+
     @Column(name = "poster_url", length = 500)
     private String posterUrl;
 

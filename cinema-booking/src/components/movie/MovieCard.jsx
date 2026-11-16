@@ -79,7 +79,7 @@ export default function MovieCard({ movie, onWatchTrailer }) {
             <p className="flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span className="line-clamp-1">
-                {movie.genres?.join(', ') || 'Hành động, Phiêu lưu'}
+                {movie.genres?.length ? movie.genres.join(', ') : 'Chưa cập nhật'}
               </span>
             </p>
             <p className="flex items-center gap-1.5">
@@ -88,11 +88,11 @@ export default function MovieCard({ movie, onWatchTrailer }) {
             </p>
             <p className="flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span>{movie.country || 'Hoa Kỳ / Quốc tế'}</span>
+              <span>{movie.country || 'Quốc tế'}</span>
             </p>
             <p className="flex items-center gap-1.5">
               <MessageSquare className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span>Phụ đề tiếng Việt</span>
+              <span>{movie.language || 'Phụ đề tiếng Việt'}</span>
             </p>
           </div>
         </div>

@@ -28,6 +28,8 @@ public class MovieDtos {
         private String description;
         private String director;
         private String cast;
+        private String country;
+        private String language;
         private String status;
         private List<String> genres;
     }
