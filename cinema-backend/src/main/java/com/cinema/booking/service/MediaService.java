@@ -36,7 +36,7 @@ public class MediaService {
         String mode = cloud.folderMode();
         Instant now = Instant.now();
         String id = UUID.randomUUID().toString();
-        String folder = "cinema/movies/" + movieId + "/" + type.name().toLowerCase(Locale.ROOT);
+        String folder = "cinema-booking/movies/" + switch (type) { case POSTER -> "posters"; case BANNER -> "banners"; case TRAILER -> "trailers"; };
         boolean video = type == MediaType.TRAILER;
         long limit = video ? videoMaxBytes : imageMaxBytes;
         if (limit <= 0) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Giới hạn upload không hợp lệ");

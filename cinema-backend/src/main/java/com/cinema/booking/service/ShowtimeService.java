@@ -37,7 +37,8 @@ public class ShowtimeService {
             showtimes = showtimeRepository.findByMovieId(movieId);
         }
 
-        return showtimes.stream().map(this::mapToShowtimeDto).collect(Collectors.toList());
+        Set<Long> activeCinemaIds = cinemaRepository.findByStatus("active").stream().map(Cinema::getId).collect(Collectors.toSet());
+        return showtimes.stream().filter(s -> s.getHall() != null && "active".equalsIgnoreCase(s.getHall().getStatus()) && activeCinemaIds.contains(s.getHall().getCinemaId())).filter(s -> "scheduled".equalsIgnoreCase(s.getStatus()) && s.getStartTime().isAfter(LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")))).map(this::mapToShowtimeDto).collect(Collectors.toList());
     }
 
     public ShowtimeSeatsDto getShowtimeSeats(Long showtimeId) {
@@ -72,6 +73,7 @@ public class ShowtimeService {
                     .seatNumber(seat.getSeatNumber())
                     .seatRow(seat.getSeatRow())
                     .seatCol(seat.getSeatCol())
+                    .layoutCol(seat.getLayoutCol())
                     .seatType(seat.getSeatType() != null ? seat.getSeatType().getName() : "standard")
                     .surcharge(surcharge)
                     .finalPrice(finalPrice)
@@ -87,10 +89,11 @@ public class ShowtimeService {
 
     public ShowtimeDto mapToShowtimeDto(Showtime s) {
         String cinemaName = "";
+        Cinema venue = s.getHall() == null ? null : cinemaRepository.findById(s.getHall().getCinemaId()).orElse(null);
         Long cinemaId = null;
         if (s.getHall() != null && s.getHall().getCinemaId() != null) {
             cinemaId = s.getHall().getCinemaId();
-            cinemaName = cinemaRepository.findById(cinemaId).map(Cinema::getName).orElse("Rạp UTE");
+            cinemaName = cinemaRepository.findById(cinemaId).map(Cinema::getName).orElse("");
         }
 
         return ShowtimeDto.builder()
@@ -100,6 +103,8 @@ public class ShowtimeService {
                 .moviePoster(s.getMovie().getPosterUrl())
                 .cinemaId(cinemaId)
                 .cinemaName(cinemaName)
+                .cinemaAddress(venue == null ? null : venue.getAddress())
+                .cinemaCity(venue == null ? null : venue.getCity())
                 .hallId(s.getHall() != null ? s.getHall().getId() : null)
                 .hallName(s.getHall() != null ? s.getHall().getName() : "")
                 .screenType(s.getHall() != null ? s.getHall().getScreenType() : "2D")

@@ -1,44 +1,10 @@
+import AdminLoginPage from '../admin/AdminLoginPage';
 import { useState, useEffect } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { QrCode, CheckCircle, AlertTriangle, Search, Printer, Ticket, DollarSign } from 'lucide-react';
 import { formatCurrency } from '../../utils/format';
 
-export const StaffLoginPage = () => (
-  <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 text-zinc-100">
-    <div className="max-w-md w-full bg-[#141414] border border-zinc-800 rounded-xl p-8 shadow-2xl">
-      <div className="text-center mb-6">
-        <span className="bg-[#e71a0f] text-white font-black text-2xl px-3 py-1 rounded inline-block">UTE</span>
-        <h1 className="text-xl font-bold text-white mt-3">ĐĂNG NHẬP CA TRỰC NHÂN VIÊN</h1>
-        <p className="text-xs text-zinc-400 mt-1">Cổng POS & Soát vé QR dành cho Nhân viên tại rạp</p>
-      </div>
-      <form className="space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-zinc-400 mb-1">MÃ NHÂN VIÊN / EMAIL</label>
-          <input
-            type="text"
-            placeholder="VD: staff01@utecinema.vn"
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-zinc-400 mb-1">MẬT KHẨU</label>
-          <input
-            type="password"
-            placeholder="••••••••"
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => (window.location.href = '/staff/pos')}
-          className="w-full py-3 bg-[#e71a0f] hover:bg-[#c41200] text-white font-bold text-sm rounded-lg shadow-lg shadow-red-900/50 transition cursor-pointer"
-        >
-          VÀO CA LÀM VIỆC
-        </button>
-      </form>
-    </div>
-  </div>
-);
+export const StaffLoginPage = () => <AdminLoginPage portal="staff" />;
 
 export const PosBookingPage = () => {
   const [selectedSeats, setSelectedSeats] = useState(['C3', 'C4']);

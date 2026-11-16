@@ -1,8 +1,9 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
 export const AdminLayout = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-100">
@@ -21,7 +22,7 @@ export const AdminLayout = () => {
           <Link to="/admin/bookings" className="block px-4 py-2.5 rounded hover:bg-slate-800 text-sm font-medium">Quản lý Đơn Hàng</Link>
         </nav>
         <div className="p-4 border-t border-slate-800">
-          <button onClick={logout} className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-sm rounded">
+          <button onClick={() => { logout(); navigate("/admin/login", { replace: true }); }} className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-sm rounded">
             Đăng xuất
           </button>
         </div>

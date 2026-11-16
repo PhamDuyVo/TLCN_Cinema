@@ -12,7 +12,7 @@ export default function CinemaHall3D({ seats, selectedIds, onToggle, disabled })
   const [pov, setPov] = useState(false);
   const focused = seats.find(s => s.id === focusedId);
   // Only geometry changes rebuild the scene; polling and selection keep the camera intact.
-  const layout = JSON.stringify(seats.map(({ id, seatRow, seatCol }) => ({ id, seatRow, seatCol })));
+  const layout = JSON.stringify(seats.map(({ id, seatRow, seatCol, layoutCol }) => ({ id, seatRow, seatCol, layoutCol })));
   useEffect(() => {
     const container = host.current;
     let renderer;
@@ -22,7 +22,7 @@ export default function CinemaHall3D({ seats, selectedIds, onToggle, disabled })
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
     const positions = JSON.parse(layout);
     const rows = [...new Set(positions.map(s => s.seatRow))].sort();
-    const columns = Math.max(1, ...positions.map(s => s.seatCol));
+    const columns = Math.max(1, ...positions.map(s => s.layoutCol ?? s.seatCol));
     const width = columns * 1.25;
     const depth = Math.max(6, rows.length * 1.65);
     camera.position.set(width * .6, depth * .9, depth + 5);
@@ -38,7 +38,7 @@ export default function CinemaHall3D({ seats, selectedIds, onToggle, disabled })
     positions.forEach(seat => {
       const row = rows.indexOf(seat.seatRow);
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(.85, .85, .75), new THREE.MeshStandardMaterial({ color: '#a16207' }));
-      mesh.position.set((seat.seatCol - (columns + 1) / 2) * 1.25, .45 + row * .12, row * 1.65 + 1);
+      mesh.position.set(((seat.layoutCol ?? seat.seatCol) - (columns + 1) / 2) * 1.25, .45 + row * .12, row * 1.65 + 1);
       mesh.userData.seatId = seat.id; scene.add(mesh); meshes.push(mesh);
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); container.appendChild(renderer.domElement);

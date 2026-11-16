@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import showtimeApi from '../../api/showtimeApi';
+import { dataOf, errorMessage } from '../../utils/booking';
+import { formatCurrency, formatDateTime } from '../../utils/format';
+import { useEffect, useRef, useState } from 'react';
 import adminApi from '../../api/adminApi';
 import { mediaApi } from '../../api/mediaApi';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from 'recharts';
@@ -197,16 +200,76 @@ export const ManageMoviesPage = () => {
   </div>;
 };
 
-export const ManageShowtimesPage = () => (
-  <div className="space-y-6 text-zinc-100">
-    <div className="flex justify-between items-center">
-      <h1 className="text-xl font-bold text-white">QUẢN LÝ LỊCH CHIẾU PHIM</h1>
-      <button className="bg-[#e71a0f] hover:bg-[#c41200] text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer">
-        <Plus className="w-4 h-4" /> Thêm Suất Chiếu
-      </button>
-    </div>
-  </div>
-);
+export function ManageShowtimesPage() {
+  const [movies, setMovies] = useState([]), [cinemas, setCinemas] = useState([]);
+  const [rooms, setRooms] = useState([]), [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true), [roomLoading, setRoomLoading] = useState(false);
+  const [saving, setSaving] = useState(false), [open, setOpen] = useState(false);
+  const [error, setError] = useState(''), [roomError, setRoomError] = useState(''), [notice, setNotice] = useState('');
+  const [retry, setRetry] = useState(0), [roomRetry, setRoomRetry] = useState(0);
+  const [form, setForm] = useState({ movieId: '', cinemaId: '', hallId: '', startTime: '', endTime: '', basePrice: '' });
+  const savingRef = useRef(false);
+  useEffect(() => {
+    let active = true;
+    setLoading(true); setError('');
+    (async () => {
+      const [films, theaters] = await Promise.all([adminApi.getMovies().then(dataOf), adminApi.getCinemas().then(dataOf)]);
+      if (!active) return;
+      setMovies(films); setCinemas(theaters);
+      const schedules = await Promise.all(films.map(movie => showtimeApi.getShowtimesByMovie(movie.id).then(dataOf)));
+      if (active) setRows(schedules.flat());
+    })().catch(e => { if (active) setError(errorMessage(e)); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [retry]);
+  useEffect(() => {
+    let active = true;
+    setRooms([]); setRoomError('');
+    if (!form.cinemaId) { setRoomLoading(false); return; }
+    setRoomLoading(true);
+    adminApi.getRoomsByCinema(Number(form.cinemaId)).then(dataOf).then(data => { if (active) setRooms(data.filter(r => !r.status || r.status.toLowerCase() === 'active')); })
+      .catch(e => { if (active) setRoomError(errorMessage(e)); }).finally(() => { if (active) setRoomLoading(false); });
+    return () => { active = false; };
+  }, [form.cinemaId, roomRetry]);
+  const change = (key, value) => setForm(old => ({ ...old, [key]: value, ...(key === 'cinemaId' ? { hallId: '' } : {}) }));
+  async function save(event) {
+    event.preventDefault();
+    if (savingRef.current) return;
+    setError(''); setNotice('');
+    const start = Date.parse(form.startTime + '+07:00'), end = Date.parse(form.endTime + '+07:00');
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start <= Date.now()) { setError('Giờ bắt đầu phải ở tương lai; giờ kết thúc phải sau giờ bắt đầu.'); return; }
+    if (!form.basePrice.trim() || !Number.isFinite(Number(form.basePrice)) || Number(form.basePrice) < 0) { setError('Giá vé phải là số không âm.'); return; }
+    if (roomLoading || !rooms.some(r => String(r.id) === form.hallId) || !movies.some(m => String(m.id) === form.movieId)) { setError('Vui lòng chọn phim và phòng thuộc rạp đã chọn.'); return; }
+    savingRef.current = true; setSaving(true);
+    try {
+      const result = dataOf(await adminApi.createShowtime({ movieId: Number(form.movieId), hallId: Number(form.hallId), startTime: form.startTime, endTime: form.endTime, basePrice: Number(form.basePrice) }));
+      if (!result?.id) throw new Error('Chưa nhận được mã suất chiếu. Hãy tải lại danh sách trước khi thử thêm lần nữa.');
+      setOpen(false); setNotice('Đã lưu suất chiếu thành công.');
+      setRows(old => [...old.filter(r => r.id !== result.id), { ...result, movieTitle: movies.find(m => String(m.id) === form.movieId)?.title, hallName: rooms.find(r => String(r.id) === form.hallId)?.name, cinemaName: cinemas.find(c => String(c.id) === form.cinemaId)?.name }]);
+      setRetry(v => v + 1);
+    } catch (e) { setError(errorMessage(e)); }
+    finally { savingRef.current = false; setSaving(false); }
+  }
+  const field = 'block w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 mt-1';
+  return <div className="space-y-6 text-zinc-100">
+    <div className="flex justify-between items-center"><h1 className="text-xl font-bold">QUẢN LÝ LỊCH CHIẾU PHIM</h1><button disabled={loading || saving} className="bg-red-600 rounded-lg px-4 py-2 disabled:opacity-40" onClick={() => { setOpen(true); setError(''); setNotice(''); }}>Thêm Suất Chiếu</button></div>
+    <p className="text-sm text-zinc-400">Danh sách suất chiếu sắp tới · Giờ Việt Nam (UTC+7)</p>
+    {notice && <p role="status" className="text-emerald-400">{notice}</p>}
+    {error && <p role="alert" className="text-red-400">{error} <button type="button" className="underline" disabled={saving} onClick={() => setRetry(v => v + 1)}>Tải lại danh sách</button></p>}
+    {open && <form onSubmit={save} className="bg-[#181818] border border-zinc-800 rounded-xl p-6 space-y-4"><h2 className="font-bold">Thêm suất chiếu</h2><fieldset disabled={saving} className="grid md:grid-cols-2 gap-4">
+      <label>Phim<select required className={field} value={form.movieId} onChange={e => change('movieId', e.target.value)}><option value="">Chọn phim</option>{movies.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}</select></label>
+      <label>Rạp<select required className={field} value={form.cinemaId} onChange={e => change('cinemaId', e.target.value)}><option value="">Chọn rạp</option>{cinemas.filter(c => !c.status || c.status.toLowerCase() === 'active').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <label>Phòng chiếu<select required disabled={!form.cinemaId || roomLoading} className={field} value={form.hallId} onChange={e => change('hallId', e.target.value)}><option value="">{roomLoading ? 'Đang tải phòng…' : 'Chọn phòng'}</option>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+      <label>Giá vé gốc (VNĐ)<input required type="number" min="0" step="0.01" className={field} value={form.basePrice} onChange={e => change('basePrice', e.target.value)} /></label>
+      <label>Ngày giờ bắt đầu<input required type="datetime-local" className={field} value={form.startTime} onChange={e => change('startTime', e.target.value)} /></label>
+      <label>Ngày giờ kết thúc<input required type="datetime-local" min={form.startTime} className={field} value={form.endTime} onChange={e => change('endTime', e.target.value)} /></label>
+    </fieldset>
+      {roomError && <p role="alert" className="text-red-400">{roomError} <button type="button" onClick={() => setRoomRetry(v => v + 1)}>Thử tải phòng lại</button></p>}
+      {form.cinemaId && !roomLoading && !roomError && !rooms.length && <p>Rạp chưa có phòng khả dụng.</p>}
+      <button disabled={saving || roomLoading || !form.hallId} className="bg-red-600 rounded-lg px-5 py-2 disabled:opacity-40">{saving ? 'Đang lưu…' : 'Lưu suất chiếu'}</button><button type="button" disabled={saving} onClick={() => setOpen(false)} className="ml-4">Đóng</button>
+    </form>}
+    {loading ? <p role="status">Đang tải lịch chiếu…</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{['Phim', 'Rạp / Phòng', 'Bắt đầu', 'Kết thúc', 'Giá vé'].map(h => <th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>{[...rows].sort((a,b) => a.startTime.localeCompare(b.startTime)).map(row => <tr key={row.id} className="border-t border-zinc-800"><td className="p-3">{row.movieTitle}</td><td>{row.cinemaName} / {row.hallName}</td><td>{formatDateTime(row.startTime)}</td><td>{formatDateTime(row.endTime)}</td><td>{formatCurrency(row.basePrice)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-4 text-zinc-400">Chưa có suất chiếu sắp tới.</p>}</div>}
+  </div>;
+}
 
 export const ManageCinemasPage = () => (
   <div className="space-y-6 text-zinc-100">

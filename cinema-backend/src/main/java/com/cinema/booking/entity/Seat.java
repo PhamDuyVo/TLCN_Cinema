@@ -23,6 +23,9 @@ public class Seat {
     @JoinColumn(name = "seat_type_id", nullable = false)
     private SeatType seatType;
 
+    @Column(name = "layout_col")
+    private Integer layoutCol;
+
     @Transient
     private String seatNumber; // A1, A2, B1...
 

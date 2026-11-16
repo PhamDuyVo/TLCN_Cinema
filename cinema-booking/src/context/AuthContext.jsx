@@ -1,3 +1,4 @@
+import { assertPortalRole } from './portalAccess';
 import { createContext, useState, useEffect } from 'react';
 import authApi from '../api/authApi';
 import { clearSession, normalizeUser, restoreSession, saveSession } from './authSession';
@@ -11,7 +12,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let active = true;
     restoreSession(localStorage, () => authApi.getMe()).then((restored) => {
-      if (active) { setUser(restored); setLoading(false); }
+      if (active) {
+        try { if (restored) assertPortalRole(restored); setUser(restored); }
+        catch { clearSession(localStorage); setUser(null); }
+        setLoading(false);
+      }
     });
     const expired = () => setUser(null);
     window.addEventListener('auth:expired', expired);
@@ -19,6 +24,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const handleLoginSuccess = (userData, accessToken, refreshToken) => {
+    assertPortalRole(userData);
     setUser(saveSession(localStorage, { user: userData, accessToken, refreshToken }));
   };
 

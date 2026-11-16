@@ -5,12 +5,15 @@ import tailwindcss from '@tailwindcss/vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: { environment: "jsdom" },
   server: {
     port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        // Local portals share this same-origin development proxy.
+        headers: { Origin: 'http://localhost:5173' },
       },
     },
   },

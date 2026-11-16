@@ -1,8 +1,9 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
 export const StaffLayout = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
@@ -18,7 +19,7 @@ export const StaffLayout = () => {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-xs text-slate-400">NV: {user?.full_name}</span>
-          <button onClick={logout} className="text-xs bg-red-600/80 hover:bg-red-600 px-3 py-1.5 rounded">
+          <button onClick={() => { logout(); navigate("/staff/login", { replace: true }); }} className="text-xs bg-red-600/80 hover:bg-red-600 px-3 py-1.5 rounded">
             Thoát ca
           </button>
         </div>

@@ -44,6 +44,8 @@ public class MovieDtos {
         private String moviePoster;
         private Long cinemaId;
         private String cinemaName;
+        private String cinemaAddress;
+        private String cinemaCity;
         private Long hallId;
         private String hallName;
         private String screenType;
@@ -63,6 +65,7 @@ public class MovieDtos {
         private String seatNumber;
         private String seatRow;
         private Integer seatCol;
+        private Integer layoutCol;
         private String seatType;
         private BigDecimal surcharge;
         private BigDecimal finalPrice;
