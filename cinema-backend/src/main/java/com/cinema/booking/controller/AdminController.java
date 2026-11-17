@@ -6,11 +6,15 @@ import com.cinema.booking.dto.MovieDtos.MovieDetailDto;
 import com.cinema.booking.entity.*;
 import com.cinema.booking.repository.*;
 import com.cinema.booking.service.MovieService;
+import com.cinema.booking.service.AdminStatsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -24,9 +28,15 @@ public class AdminController {
     private final MovieService movieService;
     private final CinemaRepository cinemaRepository;
     private final HallRepository hallRepository;
+    private final SeatRepository seatRepository;
+    private final SeatTypeRepository seatTypeRepository;
     private final ShowtimeRepository showtimeRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
+    private final PaymentRepository paymentRepository;
+    private final PromotionRepository promotionRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AdminStatsService adminStatsService;
 
     @GetMapping("/movies")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
@@ -119,26 +129,601 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái người dùng thành công!"));
     }
 
+    // ==================== CINEMAS CRUD ====================
+
+    @PostMapping("/cinemas")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Cinema>> createCinema(@RequestBody Map<String, Object> payload) {
+        Cinema cinema = Cinema.builder()
+                .name(String.valueOf(payload.get("name")))
+                .address(String.valueOf(payload.get("address")))
+                .city(payload.get("city") != null ? String.valueOf(payload.get("city")) : "")
+                .hotline(payload.get("phone") != null ? String.valueOf(payload.get("phone")) : null)
+                .status(payload.get("status") != null ? String.valueOf(payload.get("status")) : "active")
+                .build();
+        Cinema saved = cinemaRepository.save(cinema);
+        return ResponseEntity.ok(ApiResponse.success("Thêm rạp chiếu thành công!", saved));
+    }
+
+    @PutMapping("/cinemas/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Cinema>> updateCinema(@PathVariable Long id,
+                                                            @RequestBody Map<String, Object> payload) {
+        Cinema cinema = cinemaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Rạp chiếu không tồn tại"));
+        if (payload.get("name") != null) cinema.setName(String.valueOf(payload.get("name")));
+        if (payload.get("address") != null) cinema.setAddress(String.valueOf(payload.get("address")));
+        if (payload.get("city") != null) cinema.setCity(String.valueOf(payload.get("city")));
+        if (payload.get("phone") != null) cinema.setHotline(String.valueOf(payload.get("phone")));
+        if (payload.get("status") != null) cinema.setStatus(String.valueOf(payload.get("status")));
+        Cinema saved = cinemaRepository.save(cinema);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật rạp chiếu thành công!", saved));
+    }
+
+    @DeleteMapping("/cinemas/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteCinema(@PathVariable Long id) {
+        cinemaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Rạp chiếu không tồn tại"));
+        List<Hall> halls = hallRepository.findByCinemaId(id);
+        if (!halls.isEmpty()) {
+            throw new IllegalArgumentException("Không thể xóa rạp vì còn phòng chiếu liên kết");
+        }
+        cinemaRepository.deleteById(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa rạp chiếu thành công!", null));
+    }
+
+    @PatchMapping("/cinemas/{id}/status")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Cinema>> updateCinemaStatus(@PathVariable Long id,
+                                                                   @RequestBody Map<String, String> payload) {
+        Cinema cinema = cinemaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Rạp chiếu không tồn tại"));
+        String status = payload.get("status");
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Trạng thái không hợp lệ");
+        }
+        cinema.setStatus(status.toLowerCase());
+        Cinema saved = cinemaRepository.save(cinema);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái rạp thành công!", saved));
+    }
+
+    // ==================== HALLS CRUD ====================
+
+    @PostMapping("/cinemas/{cinemaId}/halls")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Hall>> createHall(@PathVariable Long cinemaId,
+                                                         @RequestBody Map<String, Object> payload) {
+        cinemaRepository.findById(cinemaId)
+                .orElseThrow(() -> new IllegalArgumentException("Rạp chiếu không tồn tại"));
+        int totalSeats = payload.get("totalSeats") != null
+                ? Integer.parseInt(payload.get("totalSeats").toString()) : 0;
+        Hall hall = Hall.builder()
+                .cinemaId(cinemaId)
+                .name(String.valueOf(payload.get("name")))
+                .screenType(payload.get("hallType") != null ? String.valueOf(payload.get("hallType")) : "2D")
+                .totalSeats(totalSeats)
+                .status("active")
+                .build();
+        Hall saved = hallRepository.save(hall);
+        return ResponseEntity.ok(ApiResponse.success("Thêm phòng chiếu thành công!", saved));
+    }
+
+    @GetMapping("/halls/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Hall>> getHall(@PathVariable Long id) {
+        Hall hall = hallRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Phòng chiếu không tồn tại"));
+        return ResponseEntity.ok(ApiResponse.success(hall));
+    }
+
+    @PutMapping("/halls/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Hall>> updateHall(@PathVariable Long id,
+                                                         @RequestBody Map<String, Object> payload) {
+        Hall hall = hallRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Phòng chiếu không tồn tại"));
+        if (payload.get("name") != null) hall.setName(String.valueOf(payload.get("name")));
+        if (payload.get("hallType") != null) hall.setScreenType(String.valueOf(payload.get("hallType")));
+        if (payload.get("totalSeats") != null)
+            hall.setTotalSeats(Integer.parseInt(payload.get("totalSeats").toString()));
+        if (payload.get("status") != null) hall.setStatus(String.valueOf(payload.get("status")));
+        Hall saved = hallRepository.save(hall);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật phòng chiếu thành công!", saved));
+    }
+
+    @DeleteMapping("/halls/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteHall(@PathVariable Long id) {
+        hallRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Phòng chiếu không tồn tại"));
+        boolean hasActiveShowtime = showtimeRepository.findAll().stream()
+                .anyMatch(s -> s.getHall().getId().equals(id)
+                        && !"cancelled".equalsIgnoreCase(s.getStatus())
+                        && !"completed".equalsIgnoreCase(s.getStatus()));
+        if (hasActiveShowtime) {
+            throw new IllegalArgumentException("Không thể xóa phòng vì còn suất chiếu đang hoạt động");
+        }
+        hallRepository.deleteById(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa phòng chiếu thành công!", null));
+    }
+
+    // ==================== SEATS ====================
+
+    @GetMapping("/halls/{hallId}/seats")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Seat>>> getSeatsByHall(@PathVariable Long hallId) {
+        hallRepository.findById(hallId)
+                .orElseThrow(() -> new IllegalArgumentException("Phòng chiếu không tồn tại"));
+        List<Seat> seats = seatRepository.findByHallIdOrderBySeatRowAscSeatColAsc(hallId);
+        return ResponseEntity.ok(ApiResponse.success(seats));
+    }
+
+    @PatchMapping("/seats/{id}/status")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Seat>> updateSeatStatus(@PathVariable Long id,
+                                                               @RequestBody Map<String, String> payload) {
+        Seat seat = seatRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Ghế không tồn tại"));
+        String status = payload.get("status");
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Trạng thái không hợp lệ");
+        }
+        seat.setStatus(status.toLowerCase());
+        Seat saved = seatRepository.save(seat);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái ghế thành công!", saved));
+    }
+
+    @PostMapping("/halls/{hallId}/seats/generate")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Seat>>> generateSeats(@PathVariable Long hallId,
+                                                                   @RequestBody Map<String, Object> payload) {
+        hallRepository.findById(hallId)
+                .orElseThrow(() -> new IllegalArgumentException("Phòng chiếu không tồn tại"));
+        int rows = Integer.parseInt(payload.get("rows").toString());
+        int cols = Integer.parseInt(payload.get("cols").toString());
+        Long seatTypeId = Long.valueOf(payload.get("defaultSeatTypeId").toString());
+        SeatType seatType = seatTypeRepository.findById(seatTypeId)
+                .orElseThrow(() -> new IllegalArgumentException("Loại ghế không tồn tại"));
+
+        // Remove existing seats for this hall
+        List<Seat> existing = seatRepository.findByHallIdOrderBySeatRowAscSeatColAsc(hallId);
+        seatRepository.deleteAll(existing);
+
+        List<Seat> generated = new ArrayList<>();
+        for (int r = 0; r < rows; r++) {
+            String rowLabel = String.valueOf((char) ('A' + r));
+            for (int c = 1; c <= cols; c++) {
+                Seat seat = Seat.builder()
+                        .hallId(hallId)
+                        .seatType(seatType)
+                        .seatRow(rowLabel)
+                        .seatCol(c)
+                        .layoutCol(c)
+                        .status("active")
+                        .build();
+                generated.add(seat);
+            }
+        }
+        List<Seat> saved = seatRepository.saveAll(generated);
+
+        // Update hall totalSeats
+        hallRepository.findById(hallId).ifPresent(hall -> {
+            hall.setTotalSeats(saved.size());
+            hallRepository.save(hall);
+        });
+
+        return ResponseEntity.ok(ApiResponse.success("Tạo ghế tự động thành công!", saved));
+    }
+
+    // ==================== SHOWTIMES (extended) ====================
+
+    @GetMapping("/showtimes")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllShowtimes(
+            @RequestParam(required = false) Long movieId,
+            @RequestParam(required = false) Long hallId,
+            @RequestParam(required = false) String date) {
+
+        List<Showtime> showtimes = showtimeRepository.findAll();
+
+        if (movieId != null) {
+            showtimes = showtimes.stream()
+                    .filter(s -> s.getMovie().getId().equals(movieId))
+                    .collect(Collectors.toList());
+        }
+        if (hallId != null) {
+            showtimes = showtimes.stream()
+                    .filter(s -> s.getHall().getId().equals(hallId))
+                    .collect(Collectors.toList());
+        }
+        if (date != null && !date.isBlank()) {
+            LocalDate filterDate = LocalDate.parse(date);
+            showtimes = showtimes.stream()
+                    .filter(s -> s.getStartTime().toLocalDate().equals(filterDate))
+                    .collect(Collectors.toList());
+        }
+
+        List<Map<String, Object>> result = showtimes.stream().map(s -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", s.getId());
+            map.put("movieId", s.getMovie().getId());
+            map.put("movieTitle", s.getMovie().getTitle());
+            map.put("hallId", s.getHall().getId());
+            map.put("hallName", s.getHall().getName());
+            map.put("cinemaId", s.getHall().getCinemaId());
+            cinemaRepository.findById(s.getHall().getCinemaId())
+                    .ifPresent(c -> map.put("cinemaName", c.getName()));
+            map.put("startTime", s.getStartTime());
+            map.put("endTime", s.getEndTime());
+            map.put("basePrice", s.getBasePrice());
+            map.put("status", s.getStatus());
+            map.put("createdAt", s.getCreatedAt());
+            return map;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PutMapping("/showtimes/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Showtime>> updateShowtime(@PathVariable Long id,
+                                                                 @RequestBody Map<String, Object> payload) {
+        Showtime showtime = showtimeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Suất chiếu không tồn tại"));
+        if (payload.get("startTime") != null)
+            showtime.setStartTime(LocalDateTime.parse(payload.get("startTime").toString()));
+        if (payload.get("endTime") != null)
+            showtime.setEndTime(LocalDateTime.parse(payload.get("endTime").toString()));
+        if (payload.get("basePrice") != null)
+            showtime.setBasePrice(new BigDecimal(payload.get("basePrice").toString()));
+        Showtime saved = showtimeRepository.save(showtime);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật suất chiếu thành công!", saved));
+    }
+
+    @DeleteMapping("/showtimes/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteShowtime(@PathVariable Long id) {
+        Showtime showtime = showtimeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Suất chiếu không tồn tại"));
+        if ("ongoing".equalsIgnoreCase(showtime.getStatus())) {
+            throw new IllegalArgumentException("Không thể hủy suất chiếu đang diễn ra");
+        }
+        showtimeRepository.deleteById(id);
+        return ResponseEntity.ok(ApiResponse.success("Hủy suất chiếu thành công!", null));
+    }
+
+    @PatchMapping("/showtimes/{id}/status")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Showtime>> updateShowtimeStatus(@PathVariable Long id,
+                                                                       @RequestBody Map<String, String> payload) {
+        Showtime showtime = showtimeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Suất chiếu không tồn tại"));
+        String status = payload.get("status");
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Trạng thái không hợp lệ");
+        }
+        showtime.setStatus(status.toLowerCase());
+        Showtime saved = showtimeRepository.save(showtime);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái suất chiếu thành công!", saved));
+    }
+
+    // ==================== USERS (extended) ====================
+
+    @PostMapping("/users")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<UserDto>> createStaff(@RequestBody Map<String, Object> payload) {
+        String email = String.valueOf(payload.get("email"));
+        if (userRepository.findAll().stream().anyMatch(u -> u.getEmail().equalsIgnoreCase(email))) {
+            throw new IllegalArgumentException("Email đã tồn tại");
+        }
+        String roleStr = payload.get("role") != null ? String.valueOf(payload.get("role")).toUpperCase() : "STAFF";
+        User.UserRole role;
+        try {
+            role = User.UserRole.valueOf(roleStr);
+        } catch (IllegalArgumentException e) {
+            role = User.UserRole.STAFF;
+        }
+        String rawPassword = String.valueOf(payload.get("password"));
+        User user = User.builder()
+                .fullName(String.valueOf(payload.get("fullName")))
+                .email(email)
+                .phone(payload.get("phone") != null ? String.valueOf(payload.get("phone")) : null)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .role(role)
+                .status(User.UserStatus.ACTIVE)
+                .build();
+        User saved = userRepository.save(user);
+        UserDto dto = UserDto.builder()
+                .id(saved.getId())
+                .fullName(saved.getFullName())
+                .email(saved.getEmail())
+                .phone(saved.getPhone())
+                .role(saved.getRole().name())
+                .status(saved.getStatus().name())
+                .createdAt(saved.getCreatedAt())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success("Tạo tài khoản nhân viên thành công!", dto));
+    }
+
+    @PutMapping("/users/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<UserDto>> updateUser(@PathVariable Long id,
+                                                            @RequestBody Map<String, Object> payload) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        if (payload.get("fullName") != null) user.setFullName(String.valueOf(payload.get("fullName")));
+        if (payload.get("phone") != null) user.setPhone(String.valueOf(payload.get("phone")));
+        if (payload.get("role") != null) {
+            try {
+                user.setRole(User.UserRole.valueOf(String.valueOf(payload.get("role")).toUpperCase()));
+            } catch (IllegalArgumentException ignored) {}
+        }
+        User saved = userRepository.save(user);
+        UserDto dto = UserDto.builder()
+                .id(saved.getId())
+                .fullName(saved.getFullName())
+                .email(saved.getEmail())
+                .phone(saved.getPhone())
+                .role(saved.getRole().name())
+                .status(saved.getStatus().name())
+                .createdAt(saved.getCreatedAt())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật thông tin người dùng thành công!", dto));
+    }
+
+    // =========================================================================
+    // STATS ENDPOINTS
+    // =========================================================================
+
     @GetMapping("/stats/dashboard")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardStats() {
-        long totalUsers = userRepository.count();
-        long totalMovies = movieRepository.count();
-        long totalBookings = bookingRepository.count();
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardStatsV2() {
+        return ResponseEntity.ok(ApiResponse.success(adminStatsService.getDashboardStats()));
+    }
 
-        List<Booking> paidBookings = bookingRepository.findAll().stream()
-                .filter(b -> "PAID".equalsIgnoreCase(b.getStatus()))
-                .collect(Collectors.toList());
+    @GetMapping("/stats/revenue")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRevenueStats(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "day") String groupBy) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to   == null) to   = LocalDate.now();
+        return ResponseEntity.ok(ApiResponse.success(adminStatsService.getRevenueByRange(from, to, groupBy)));
+    }
 
-        BigDecimal totalRevenue = paidBookings.stream()
-                .map(Booking::getFinalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    @GetMapping("/stats/tickets")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTicketStats(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to   == null) to   = LocalDate.now();
+        return ResponseEntity.ok(ApiResponse.success(adminStatsService.getTicketStats(from, to)));
+    }
 
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalUsers", totalUsers);
-        stats.put("totalMovies", totalMovies);
-        stats.put("totalBookings", totalBookings);
-        stats.put("totalRevenue", totalRevenue);
+    @GetMapping("/stats/movies")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMovieStats(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to   == null) to   = LocalDate.now();
+        return ResponseEntity.ok(ApiResponse.success(adminStatsService.getMovieStats(from, to)));
+    }
 
-        return ResponseEntity.ok(ApiResponse.success(stats));
+    @GetMapping("/stats/showtimes")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getShowtimeStats(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to   == null) to   = LocalDate.now();
+        return ResponseEntity.ok(ApiResponse.success(adminStatsService.getShowtimeStats(from, to)));
+    }
+
+    // =========================================================================
+    // PROMOTIONS CRUD
+    // =========================================================================
+
+    @GetMapping("/promotions")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Promotion>>> getAllPromotions() {
+        return ResponseEntity.ok(ApiResponse.success(promotionRepository.findAll()));
+    }
+
+    @PostMapping("/promotions")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Promotion>> createPromotion(@RequestBody Map<String, Object> payload) {
+        String code = String.valueOf(payload.get("code")).toUpperCase().trim();
+        if (promotionRepository.existsByCode(code)) {
+            throw new IllegalArgumentException("Mã khuyến mãi đã tồn tại");
+        }
+        Promotion promo = Promotion.builder()
+                .code(code)
+                .description(payload.get("description") != null ? String.valueOf(payload.get("description")) : "")
+                .discountType(payload.get("discountType") != null ? String.valueOf(payload.get("discountType")) : "percent")
+                .discountValue(new BigDecimal(payload.get("discountValue").toString()))
+                .minOrderAmount(payload.get("minOrderAmount") != null ? new BigDecimal(payload.get("minOrderAmount").toString()) : BigDecimal.ZERO)
+                .maxDiscountAmount(payload.get("maxDiscountAmount") != null ? new BigDecimal(payload.get("maxDiscountAmount").toString()) : null)
+                .startDate(payload.get("startDate") != null ? LocalDateTime.parse(payload.get("startDate").toString().contains("T") ? payload.get("startDate").toString() : payload.get("startDate").toString() + "T00:00:00") : LocalDateTime.now())
+                .endDate(payload.get("endDate") != null ? LocalDateTime.parse(payload.get("endDate").toString().contains("T") ? payload.get("endDate").toString() : payload.get("endDate").toString() + "T23:59:59") : LocalDateTime.now().plusDays(30))
+                .usageLimit(payload.get("usageLimit") != null && !payload.get("usageLimit").toString().isBlank() ? Integer.parseInt(payload.get("usageLimit").toString()) : null)
+                .usedCount(0)
+                .status(payload.get("status") != null ? String.valueOf(payload.get("status")) : "active")
+                .build();
+        Promotion saved = promotionRepository.save(promo);
+        return ResponseEntity.ok(ApiResponse.success("Tạo mã khuyến mãi thành công!", saved));
+    }
+
+    @PutMapping("/promotions/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Promotion>> updatePromotion(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Promotion promo = promotionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Khuyến mãi không tồn tại"));
+        if (payload.get("description") != null) promo.setDescription(String.valueOf(payload.get("description")));
+        if (payload.get("discountType") != null) promo.setDiscountType(String.valueOf(payload.get("discountType")));
+        if (payload.get("discountValue") != null) promo.setDiscountValue(new BigDecimal(payload.get("discountValue").toString()));
+        if (payload.get("minOrderAmount") != null) promo.setMinOrderAmount(new BigDecimal(payload.get("minOrderAmount").toString()));
+        if (payload.get("maxDiscountAmount") != null) promo.setMaxDiscountAmount(new BigDecimal(payload.get("maxDiscountAmount").toString()));
+        if (payload.get("startDate") != null) {
+            String s = payload.get("startDate").toString();
+            promo.setStartDate(LocalDateTime.parse(s.contains("T") ? s : s + "T00:00:00"));
+        }
+        if (payload.get("endDate") != null) {
+            String s = payload.get("endDate").toString();
+            promo.setEndDate(LocalDateTime.parse(s.contains("T") ? s : s + "T23:59:59"));
+        }
+        if (payload.get("usageLimit") != null) {
+            String u = payload.get("usageLimit").toString();
+            promo.setUsageLimit(u.isBlank() ? null : Integer.parseInt(u));
+        }
+        if (payload.get("status") != null) promo.setStatus(String.valueOf(payload.get("status")));
+        Promotion saved = promotionRepository.save(promo);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật khuyến mãi thành công!", saved));
+    }
+
+    @PatchMapping("/promotions/{id}/status")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Promotion>> togglePromotionStatus(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Promotion promo = promotionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Khuyến mãi không tồn tại"));
+        if (payload.containsKey("isActive")) {
+            boolean active = Boolean.parseBoolean(payload.get("isActive").toString());
+            promo.setStatus(active ? "active" : "inactive");
+        } else if (payload.containsKey("status")) {
+            promo.setStatus(String.valueOf(payload.get("status")));
+        }
+        Promotion saved = promotionRepository.save(promo);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái khuyến mãi thành công!", saved));
+    }
+
+    @DeleteMapping("/promotions/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deletePromotion(@PathVariable Long id) {
+        Promotion promo = promotionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Khuyến mãi không tồn tại"));
+        promotionRepository.delete(promo);
+        return ResponseEntity.ok(ApiResponse.success("Xóa khuyến mãi thành công!", null));
+    }
+
+    // =========================================================================
+    // BOOKINGS & PAYMENTS
+    // =========================================================================
+
+    @GetMapping("/bookings")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAdminBookings(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
+
+        List<Booking> all = bookingRepository.findAll();
+
+        all.sort((a, b) -> {
+            if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+
+        if (status != null && !status.isBlank() && !"all".equalsIgnoreCase(status)) {
+            all = all.stream().filter(b -> status.equalsIgnoreCase(b.getStatus())).collect(Collectors.toList());
+        }
+
+        if (search != null && !search.isBlank()) {
+            String kw = search.toLowerCase().trim();
+            all = all.stream().filter(b ->
+                    (b.getBookingCode() != null && b.getBookingCode().toLowerCase().contains(kw)) ||
+                    (b.getCustomerName() != null && b.getCustomerName().toLowerCase().contains(kw)) ||
+                    (b.getCustomerEmail() != null && b.getCustomerEmail().toLowerCase().contains(kw)) ||
+                    (b.getCustomerPhone() != null && b.getCustomerPhone().contains(kw))
+            ).collect(Collectors.toList());
+        }
+
+        int totalElements = all.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        int start = Math.min(page * size, totalElements);
+        int end = Math.min(start + size, totalElements);
+        List<Booking> paged = all.subList(start, end);
+
+        List<Map<String, Object>> content = paged.stream().map(b -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", b.getId());
+            map.put("bookingCode", b.getBookingCode());
+            map.put("customerName", b.getCustomerName());
+            map.put("customerEmail", b.getCustomerEmail());
+            map.put("customerPhone", b.getCustomerPhone());
+            map.put("status", b.getStatus());
+            map.put("finalAmount", b.getFinalAmount());
+            map.put("discountAmount", b.getDiscountAmount());
+            map.put("createdAt", b.getCreatedAt());
+
+            if (b.getShowtime() != null) {
+                map.put("movieTitle", b.getShowtime().getMovie() != null ? b.getShowtime().getMovie().getTitle() : "");
+                map.put("startTime", b.getShowtime().getStartTime());
+                if (b.getShowtime().getHall() != null) {
+                    map.put("hallName", b.getShowtime().getHall().getName());
+                    cinemaRepository.findById(b.getShowtime().getHall().getCinemaId())
+                            .ifPresent(c -> map.put("cinemaName", c.getName()));
+                }
+            }
+
+            List<Map<String, Object>> ticketDtos = b.getTickets().stream().map(t -> {
+                Map<String, Object> tm = new LinkedHashMap<>();
+                tm.put("id", t.getId());
+                tm.put("ticketCode", t.getTicketCode());
+                tm.put("price", t.getPrice());
+                tm.put("status", t.getStatus());
+                if (t.getSeat() != null) {
+                    tm.put("seatRow", t.getSeat().getSeatRow());
+                    tm.put("seatCol", t.getSeat().getSeatCol());
+                    tm.put("seatLabel", t.getSeat().getSeatRow() + t.getSeat().getSeatCol());
+                    if (t.getSeat().getSeatType() != null) {
+                        tm.put("seatType", t.getSeat().getSeatType().getName());
+                    }
+                }
+                return tm;
+            }).collect(Collectors.toList());
+            map.put("tickets", ticketDtos);
+            map.put("ticketCount", ticketDtos.size());
+
+            return map;
+        }).collect(Collectors.toList());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("content", content);
+        response.put("totalElements", totalElements);
+        response.put("totalPages", totalPages);
+        response.put("currentPage", page);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/payments")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAdminPayments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String method) {
+
+        List<Payment> all = paymentRepository.findAll();
+        all.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+
+        if (method != null && !method.isBlank() && !"all".equalsIgnoreCase(method)) {
+            all = all.stream().filter(p -> method.equalsIgnoreCase(p.getPaymentMethod())).collect(Collectors.toList());
+        }
+
+        int totalElements = all.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        int start = Math.min(page * size, totalElements);
+        int end = Math.min(start + size, totalElements);
+        List<Payment> paged = all.subList(start, end);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("content", paged);
+        response.put("totalElements", totalElements);
+        response.put("totalPages", totalPages);
+        response.put("currentPage", page);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
