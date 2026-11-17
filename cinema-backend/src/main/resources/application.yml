@@ -4,7 +4,10 @@ server:
     context-path: /api
 spring:
   config:
-    import: optional:file:.env.local[.properties]
+    # Load .env.local whether the app is started from cinema-backend/ or from the repo root
+    import:
+      - optional:file:.env.local[.properties]
+      - optional:file:cinema-backend/.env.local[.properties]
   application:
     name: cinema-backend
   datasource:
@@ -17,7 +20,7 @@ spring:
       minimum-idle: 2
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: ${DDL_AUTO:update}
     open-in-view: false
     properties:
       hibernate:
@@ -44,7 +47,8 @@ app:
     expiration-ms: 86400000
     refresh-expiration-ms: 604800000
   google:
-    client-id: ${GOOGLE_CLIENT_ID:}
+    # Public OAuth client id; must match VITE_GOOGLE_CLIENT_ID in cinema-booking/.env
+    client-id: ${GOOGLE_CLIENT_ID:960924910955-i78v8od0vsgtqnljdks78rk1nkm38ohm.apps.googleusercontent.com}
   cors:
     allowed-origins:
       - http://localhost:5173

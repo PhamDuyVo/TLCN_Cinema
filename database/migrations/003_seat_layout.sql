@@ -1,1 +1,0 @@
-ALTER TABLE seats ADD COLUMN layout_col INT NULL;

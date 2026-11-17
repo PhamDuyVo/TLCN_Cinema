@@ -33,8 +33,8 @@ TLCN_test/
 │   │   └── application.yml     # Cấu hình port 5000, MySQL, JWT, Mail, VNPay
 │   └── pom.xml
 │
-├── database/                   # File kịch bản CSDL MySQL
-│   └── schema_and_seed.sql     # Script tạo 19 bảng và nạp dữ liệu mẫu
+├── database/                   # File kịch bản dữ liệu mẫu MySQL
+│   └── seed_data.sql           # Dữ liệu mẫu (phim, rạp, phòng chiếu, ghế 3D, suất chiếu 7 ngày, combo, voucher)
 │
 ```
 
@@ -42,21 +42,24 @@ TLCN_test/
 
 ## 🚀 Hướng dẫn khởi chạy
 
-### 1. Khởi tạo Cơ sở Dữ liệu (MySQL)
-1. Mở **MySQL Workbench** hoặc **Navicat / DBeaver / Command Line**.
-2. Mở file `database/schema_and_seed.sql` và thực thi (Execute).
-3. Cơ sở dữ liệu `movie_ticket_system_fixed1` với 19 bảng và đầy đủ dữ liệu mẫu (phim, rạp, phòng chiếu, ghế, suất chiếu, combo) sẽ được tự động tạo.
-
-### 2. Chạy Backend (Java Spring Boot)
-1. Sao chép `cinema-backend/.env.example` thành `cinema-backend/.env.local`.
-2. Điền thông tin MySQL và các dịch vụ cần thiết vào `.env.local`.
+### 1. Khởi chạy Backend (Java Spring Boot - Code First)
+1. Đảm bảo MySQL đang chạy và đã tạo schema rỗng (nếu chưa có):
+   ```sql
+   CREATE DATABASE IF NOT EXISTS movie_ticket_system_fixed1 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+2. Cấu hình file `cinema-backend/.env.local` với thông tin kết nối MySQL của bạn.
 3. Chạy backend:
+   ```bash
+   cd cinema-backend
+   mvn spring-boot:run
+   ```
+   * Spring Boot & Hibernate sẽ tự động sinh và cập nhật toàn bộ 19 bảng chuẩn theo Entity Java (Code-First).
+   * Backend sẽ chạy tại: `http://localhost:5000/api`
 
-```bash
-cd cinema-backend
-mvn spring-boot:run
-```
-* Backend sẽ chạy tại: `http://localhost:5000/api`
+### 2. Nạp Dữ liệu Mẫu (Seed Data)
+1. Mở **MySQL Workbench** hoặc **Navicat / DBeaver / Command Line**.
+2. Mở file `database/seed_data.sql` và thực thi (Execute).
+3. Dữ liệu mẫu đầy đủ về phim, cụm rạp, phòng chiếu, ghế 3D, suất chiếu cho 7 ngày tới, combo bắp nước, khuyến mãi và tài khoản demo sẽ được nạp vào.
 * Kiểm tra API tài liệu / dữ liệu phim: `http://localhost:5000/api/movies`
 
 ### 3. Chạy Frontend (React.js)
