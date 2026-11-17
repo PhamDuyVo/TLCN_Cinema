@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import static org.junit.jupiter.api.Assertions.*;
 @DataJpaTest(properties={"spring.jpa.show-sql=false","spring.config.name=booking-tests"})
 @AutoConfigureTestDatabase(replace=AutoConfigureTestDatabase.Replace.NONE)
@@ -36,6 +37,7 @@ class BookingConcurrencyTest {
  @Autowired HoldService holds; @Autowired BookingService bookings;
  @Autowired EntityManager em; @Autowired PlatformTransactionManager tm;
  @Autowired HoldSessionRepository sessions; @Autowired PromotionRepository promotions;
+ @MockBean PayPalService payPalService;
  long show,seat,seat2,user1,user2; String tag;
  @BeforeEach void fixture() {
   tag=UUID.randomUUID().toString().substring(0,8);
@@ -88,7 +90,7 @@ class BookingConcurrencyTest {
   holds.put(show,user1,List.of(seat));
   CreateBookingRequest r=request(seat,null);r.setCombos(List.of(new ComboItemRequest(123L,0)));
   assertThrows(IllegalArgumentException.class,()->bookings.quote(user1,r));
-  r.setCombos(null);r.setPaymentMethod("VNPAY");assertThrows(IllegalArgumentException.class,()->bookings.createBooking(user1,r));
+  r.setCombos(null);r.setPaymentMethod("INVALID_METHOD");assertThrows(IllegalArgumentException.class,()->bookings.createBooking(user1,r));
   assertEquals(List.of(seat),holds.get(show,user1).seatIds());
   assertEquals(new BigDecimal("100.00"),bookings.quote(user1,r).finalAmount());
  }

@@ -27,10 +27,25 @@ public class Payment {
     private String txnRef;
 
     @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal amount;
+    private BigDecimal amount; // Số tiền VND
+
+    @Column(name = "amount_usd", precision = 10, scale = 2)
+    private BigDecimal amountUsd; // Số tiền USD khi thanh toán qua PayPal
+
+    @Column(name = "exchange_rate", precision = 10, scale = 2)
+    private BigDecimal exchangeRate; // Tỷ giá quy đổi (VND/USD)
 
     @Column(name = "payment_method", nullable = false, length = 30)
-    private String paymentMethod;
+    private String paymentMethod; // PAYPAL, PAY_AT_COUNTER
+
+    @Column(name = "paypal_order_id", length = 100)
+    private String paypalOrderId;
+
+    @Column(name = "paypal_capture_id", length = 100)
+    private String paypalCaptureId;
+
+    @Column(name = "paypal_refund_id", length = 100)
+    private String paypalRefundId;
 
     @Column(name = "bank_code", length = 30)
     private String bankCode;
@@ -40,10 +55,13 @@ public class Payment {
 
     @Column(length = 20)
     @Builder.Default
-    private String status = "PENDING"; // PENDING, SUCCESS, FAILED
+    private String status = "PENDING"; // PENDING, SUCCESS, FAILED, REFUNDED
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
+
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

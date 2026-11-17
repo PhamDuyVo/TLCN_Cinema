@@ -1,12 +1,12 @@
 package com.cinema.booking.controller;
 
 import com.cinema.booking.dto.ApiResponse;
+import com.cinema.booking.dto.PaymentDtos.CapturePaymentRequest;
 import com.cinema.booking.dto.PaymentDtos.CreatePaymentRequest;
-import com.cinema.booking.dto.PaymentDtos.CreatePaymentUrlResponse;
-import com.cinema.booking.dto.PaymentDtos.PaymentReturnDto;
+import com.cinema.booking.dto.PaymentDtos.PayPalCaptureResponse;
+import com.cinema.booking.dto.PaymentDtos.PayPalOrderResponse;
 import com.cinema.booking.security.UserPrincipal;
-import com.cinema.booking.service.VnPayService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.cinema.booking.service.PayPalService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +17,6 @@ import org.springframework.web.servlet.view.RedirectView;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/payments")
@@ -25,85 +24,87 @@ import java.util.Map;
 @Slf4j
 public class PaymentController {
 
-    private final VnPayService vnPayService;
+    private final PayPalService payPalService;
 
-    @Value("${app.vnpay.return-url:http://localhost:5173/booking-success}")
+    @Value("${app.paypal.return-url:http://localhost:5173/booking-success}")
     private String frontendReturnUrl;
 
+    @Value("${app.paypal.cancel-url:http://localhost:5173/checkout}")
+    private String frontendCancelUrl;
+
     /**
-     * Tạo URL thanh toán VNPay Sandbox cho đơn đặt vé.
+     * Khởi tạo PayPal Order cho mã đặt vé (Tạo link / thông tin thanh toán).
      */
-    @PostMapping("/vnpay/create-url")
-    public ResponseEntity<ApiResponse<CreatePaymentUrlResponse>> createPaymentUrl(
+    @PostMapping("/paypal/create-order")
+    public ResponseEntity<ApiResponse<PayPalOrderResponse>> createOrder(
             @AuthenticationPrincipal UserPrincipal user,
             @RequestBody(required = false) CreatePaymentRequest request,
-            @RequestParam(required = false) String bookingCode,
-            HttpServletRequest servletRequest) {
+            @RequestParam(required = false) String bookingCode) {
 
         String code = request != null && request.getBookingCode() != null ? request.getBookingCode() : bookingCode;
         if (code == null || code.isBlank()) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Vui lòng cung cấp mã đặt vé"));
         }
 
-        String clientIp = getClientIp(servletRequest);
         Long userId = user != null ? user.getId() : null;
-
-        CreatePaymentUrlResponse response = vnPayService.createPaymentUrl(userId, code, clientIp);
-        return ResponseEntity.ok(ApiResponse.success("Tạo link thanh toán VNPay thành công!", response));
+        PayPalOrderResponse response = payPalService.createOrder(userId, code);
+        return ResponseEntity.ok(ApiResponse.success("Khởi tạo thanh toán PayPal thành công!", response));
     }
 
     /**
-     * Webhook IPN (Server-to-Server) được VNPay gọi để cập nhật trạng thái đơn hàng.
+     * Xác nhận hoàn tất thanh toán (Capture) sau khi người dùng phê duyệt trên PayPal.
      */
-    @GetMapping("/vnpay-ipn")
-    public ResponseEntity<Map<String, String>> vnpayIpn(@RequestParam Map<String, String> allParams) {
-        log.info("Received VNPay IPN request: {}", allParams);
-        Map<String, String> result = vnPayService.processIpn(allParams);
-        return ResponseEntity.ok(result);
-    }
+    @PostMapping("/paypal/capture-order")
+    public ResponseEntity<ApiResponse<PayPalCaptureResponse>> captureOrder(
+            @RequestBody CapturePaymentRequest request,
+            @RequestParam(required = false) String orderId) {
 
-    /**
-     * URL chuyển hướng người dùng sau khi thanh toán trên VNPay.
-     * Tự động redirect về giao diện Frontend (BookingSuccessPage) kèm mã đơn và trạng thái.
-     */
-    @GetMapping("/vnpay-return")
-    public Object vnpayReturn(@RequestParam Map<String, String> allParams,
-                              @RequestHeader(value = "Accept", required = false) String acceptHeader) {
-        log.info("Received VNPay Return request: {}", allParams);
-        PaymentReturnDto result = vnPayService.handleReturn(allParams);
-
-        // Nếu client yêu cầu JSON rõ ràng
-        if (acceptHeader != null && acceptHeader.contains("application/json")) {
-            return ResponseEntity.ok(ApiResponse.success(result));
+        String targetOrderId = request != null && request.getOrderId() != null ? request.getOrderId() : orderId;
+        if (targetOrderId == null || targetOrderId.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Thiếu mã đơn PayPal (orderId)"));
         }
 
-        // Mặc định chuyển hướng trình duyệt của người dùng về trang kết quả Frontend
+        PayPalCaptureResponse response = payPalService.captureOrder(targetOrderId);
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận thanh toán PayPal thành công!", response));
+    }
+
+    /**
+     * URL chuyển hướng người dùng sau khi thanh toán trên PayPal (Fallback Browser Redirect).
+     */
+    @GetMapping("/paypal-return")
+    public RedirectView paypalReturn(@RequestParam(value = "token", required = false) String orderId,
+                                     @RequestParam(value = "bookingCode", required = false) String bookingCode) {
+        log.info("PayPal Return callback: token/orderId={}, bookingCode={}", orderId, bookingCode);
+
         String redirectTarget = frontendReturnUrl;
         try {
-            String bookingParam = result.getBookingCode() != null ? URLEncoder.encode(result.getBookingCode(), StandardCharsets.UTF_8) : "";
-            String statusParam = result.getStatus() != null ? URLEncoder.encode(result.getStatus(), StandardCharsets.UTF_8) : "";
-            redirectTarget += (redirectTarget.contains("?") ? "&" : "?") + "bookingCode=" + bookingParam + "&paymentStatus=" + statusParam;
+            if (orderId != null && !orderId.isBlank()) {
+                PayPalCaptureResponse captured = payPalService.captureOrder(orderId);
+                String code = captured.getBookingCode() != null ? captured.getBookingCode() : (bookingCode != null ? bookingCode : "");
+                redirectTarget += (redirectTarget.contains("?") ? "&" : "?")
+                        + "bookingCode=" + URLEncoder.encode(code, StandardCharsets.UTF_8)
+                        + "&paymentStatus=PAID";
+            }
         } catch (Exception e) {
-            log.error("Lỗi tạo URL chuyển hướng", e);
+            log.error("Lỗi khi tự động capture từ paypal-return", e);
+            redirectTarget += (redirectTarget.contains("?") ? "&" : "?")
+                    + (bookingCode != null ? "bookingCode=" + URLEncoder.encode(bookingCode, StandardCharsets.UTF_8) + "&" : "")
+                    + "paymentStatus=FAILED";
         }
 
         return new RedirectView(redirectTarget);
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
+    /**
+     * URL chuyển hướng người dùng khi hủy thao tác trên PayPal.
+     */
+    @GetMapping("/paypal-cancel")
+    public RedirectView paypalCancel(@RequestParam(value = "bookingCode", required = false) String bookingCode) {
+        log.info("PayPal payment cancelled by user for booking: {}", bookingCode);
+        String target = frontendCancelUrl;
+        if (bookingCode != null) {
+            target += (target.contains("?") ? "&" : "?") + "bookingCode=" + URLEncoder.encode(bookingCode, StandardCharsets.UTF_8) + "&canceled=true";
         }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
+        return new RedirectView(target);
     }
 }

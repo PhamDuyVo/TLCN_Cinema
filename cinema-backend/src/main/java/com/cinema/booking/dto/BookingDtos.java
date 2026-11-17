@@ -22,7 +22,7 @@ public class BookingDtos {
         private List<Long> seatIds;
         private List<ComboItemRequest> combos;
         private String promotionCode;
-        private String paymentMethod; // VNPAY, MOMO
+        private String paymentMethod; // PAYPAL, PAY_AT_COUNTER
         private String customerName;
         private String customerEmail;
         private String customerPhone;

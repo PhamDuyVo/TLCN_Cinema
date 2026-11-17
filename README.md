@@ -30,7 +30,7 @@ TLCN_test/
 │   │   ├── security/           # JWT Token Provider & Filter
 │   │   └── service/            # Business Logic Services
 │   ├── src/main/resources/
-│   │   └── application.yml     # Cấu hình port 5000, MySQL, JWT, Mail, VNPay
+│   │   └── application.yml     # Cấu hình port 5000, MySQL, JWT, Mail, PayPal Sandbox
 │   └── pom.xml
 │
 ├── database/                   # File kịch bản dữ liệu mẫu MySQL

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import bookingApi from '../../api/bookingApi';
+import paymentApi from '../../api/paymentApi';
 import showtimeApi from '../../api/showtimeApi';
 import useCountdown from '../../hooks/useCountdown';
 import { comboItems, dataOf, errorMessage, timedHold, safeUrl } from '../../utils/booking';
 import { formatCurrency, formatDateTime } from '../../utils/format';
+import { CreditCard, Store, ShieldCheck } from 'lucide-react';
 
 export default function CheckoutPage() {
   const [params] = useSearchParams();
@@ -34,6 +36,7 @@ function CheckoutSession({ showtimeId }) {
     }
   });
   const [promotionCode, setPromotionCode] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('PAYPAL'); // Mặc định PAYPAL
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState('');
   const [error, setError] = useState('');
@@ -93,6 +96,7 @@ function CheckoutSession({ showtimeId }) {
     seatIds,
     combos: comboItems(quantities),
     promotionCode: promotionCode.trim().toUpperCase(),
+    paymentMethod,
   });
 
   useEffect(() => {
@@ -132,6 +136,9 @@ function CheckoutSession({ showtimeId }) {
   }, [payloadKey, validHold, online, retry]);
 
   const currentQuote = quote?.key === payloadKey ? quote.data : null;
+  const estimatedUsd = currentQuote?.finalAmount
+    ? (Number(currentQuote.finalAmount) / 25400).toFixed(2)
+    : '0.00';
 
   async function submit() {
     if (submittingRef.current || !validHold || !online || !currentQuote) return;
@@ -139,19 +146,45 @@ function CheckoutSession({ showtimeId }) {
     setSubmitting(true);
     setError('');
     try {
-      const booking = dataOf(
-        await bookingApi.createBooking({
-          ...JSON.parse(payloadKey),
-          paymentMethod: 'PAY_AT_COUNTER',
-        })
-      );
-      if (!booking?.bookingCode)
+      const payload = {
+        ...JSON.parse(payloadKey),
+        paymentMethod,
+      };
+
+      const booking = dataOf(await bookingApi.createBooking(payload));
+
+      if (!booking?.bookingCode) {
         throw new Error(
           'Máy chủ chưa trả mã đặt vé. Vui lòng kiểm tra Vé của tôi trước khi thử lại.'
         );
+      }
+
       try {
         sessionStorage.removeItem('selected_combos');
       } catch {}
+
+      // Nếu thanh toán qua PayPal, chuyển hướng người dùng sang cổng thanh toán PayPal Sandbox
+      if (paymentMethod === 'PAYPAL') {
+        let approveUrl = booking.paymentUrl;
+        if (!approveUrl) {
+          try {
+            const createOrderFn = bookingApi.createPayPalOrder || paymentApi.createPayPalOrder;
+            const payRes = dataOf(await createOrderFn(booking.bookingCode));
+            approveUrl = payRes?.approveUrl;
+          } catch (payErr) {
+            console.error('Lỗi khi gọi createPayPalOrder fallback:', payErr);
+          }
+        }
+
+        if (approveUrl) {
+          window.location.href = approveUrl;
+          return;
+        }
+
+        throw new Error('Chưa thể lấy liên kết thanh toán PayPal. Vui lòng kiểm tra lại kết nối hoặc tài khoản PayPal.');
+      }
+
+      // Thanh toán tại quầy: chuyển ngay sang trang xác nhận thành công
       navigate(
         `/booking-success?bookingCode=${encodeURIComponent(booking.bookingCode)}`,
         { replace: true }
@@ -175,13 +208,13 @@ function CheckoutSession({ showtimeId }) {
           COMBO, VOUCHER & ĐẶT VÉ
         </h1>
         <p className="text-[#A1A1AA] text-xs mb-6">
-          Chọn thêm bắp nước, áp dụng mã giảm giá và xác nhận đặt vé trực tuyến
+          Chọn thêm bắp nước, áp dụng mã giảm giá và xác nhận thanh toán trực tuyến
         </p>
 
         {error && (
           <p role="alert" className="text-red-400 mb-4 bg-red-950/40 border border-red-800 p-3 rounded-lg text-sm">
             {error}{' '}
-            <button onClick={() => setRetry((v) => v + 1)} className="underline ml-2 font-bold text-white">
+            <button onClick={() => setRetry((v) => v + 1)} className="underline ml-2 font-bold text-white cursor-pointer">
               Thử lại
             </button>
           </p>
@@ -280,20 +313,84 @@ function CheckoutSession({ showtimeId }) {
                 {quoteError && (
                   <p role="alert" className="text-red-400 mt-3 text-xs bg-red-950/40 p-2.5 rounded-lg border border-red-800">
                     {quoteError}{' '}
-                    <button className="underline ml-2 font-bold text-white" onClick={() => setRetry((v) => v + 1)}>
+                    <button className="underline ml-2 font-bold text-white cursor-pointer" onClick={() => setRetry((v) => v + 1)}>
                       Thử lại
                     </button>
                   </p>
                 )}
               </section>
 
-              {/* Payment Info */}
+              {/* Payment Method Selection */}
               <section className="bg-[#1B1B23] border border-[#2E2E38] rounded-2xl p-6 shadow-xl">
-                <h2 className="font-bold mb-2 text-sm text-white">THANH TOÁN TẠI QUẦY</h2>
-                <p className="text-xs text-[#A1A1AA] leading-relaxed">
-                  Đặt chỗ trực tuyến tại hệ thống rạp UTE Cinema, nhận vé và thanh toán tại quầy rạp.
-                  Xác nhận đặt vé chưa phải là xác nhận đã thanh toán tiền.
-                </p>
+                <h2 className="font-black text-[#F8FAFC] mb-4 text-base flex items-center gap-2">
+                  <span className="w-2 h-4 bg-[#E50914] rounded-sm inline-block" />
+                  PHƯƠNG THỨC THANH TOÁN
+                </h2>
+                <div className="space-y-3">
+                  {/* Option 1: PayPal */}
+                  <label
+                    className={`flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer transition ${
+                      paymentMethod === 'PAYPAL'
+                        ? 'bg-[#121218] border-[#E50914] shadow-md shadow-red-950/30'
+                        : 'bg-[#121218]/60 border-[#2E2E38] hover:border-zinc-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="PAYPAL"
+                      checked={paymentMethod === 'PAYPAL'}
+                      onChange={() => setPaymentMethod('PAYPAL')}
+                      className="mt-1 accent-[#E50914]"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-sky-400" />
+                        <span className="font-bold text-sm text-white">Thanh toán trực tuyến PayPal (Dev/Sandbox)</span>
+                        <span className="text-[10px] bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded font-bold">Khuyên dùng</span>
+                      </div>
+                      <p className="text-xs text-[#A1A1AA] mt-1.5 leading-relaxed">
+                        Hỗ trợ tài khoản cá nhân PayPal Sandbox, thẻ thanh toán quốc tế Visa, Mastercard, American Express.
+                      </p>
+                      {currentQuote && (
+                        <p className="text-xs text-amber-400 font-medium mt-2 bg-amber-950/30 border border-amber-900/60 p-2 rounded-lg">
+                          Tỷ giá quy đổi ước tính (1 USD ≈ 25.400 VND): <strong className="text-white">${estimatedUsd} USD</strong>
+                        </p>
+                      )}
+                    </div>
+                  </label>
+
+                  {/* Option 2: Pay at Counter */}
+                  <label
+                    className={`flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer transition ${
+                      paymentMethod === 'PAY_AT_COUNTER'
+                        ? 'bg-[#121218] border-[#E50914] shadow-md shadow-red-950/30'
+                        : 'bg-[#121218]/60 border-[#2E2E38] hover:border-zinc-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="PAY_AT_COUNTER"
+                      checked={paymentMethod === 'PAY_AT_COUNTER'}
+                      onChange={() => setPaymentMethod('PAY_AT_COUNTER')}
+                      className="mt-1 accent-[#E50914]"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Store className="w-5 h-5 text-amber-400" />
+                        <span className="font-bold text-sm text-white">Thanh toán tại quầy rạp (Pay at counter)</span>
+                      </div>
+                      <p className="text-xs text-[#A1A1AA] mt-1.5 leading-relaxed">
+                        Đặt giữ chỗ trực tuyến trước và thanh toán tiền mặt hoặc thẻ tại quầy vé rạp UTE Cinema trước giờ chiếu.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-xs text-[#71717A]">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Bảo mật giao dịch tiêu chuẩn quốc tế SSL/TLS 256-bit</span>
+                </div>
               </section>
             </div>
 
@@ -326,10 +423,17 @@ function CheckoutSession({ showtimeId }) {
                       <span className="font-bold text-white">{formatCurrency(value)}</span>
                     </p>
                   ))}
-                  <p className="text-lg font-black text-[#E50914] flex justify-between pt-2 border-t border-[#2E2E38]">
-                    <span>Tổng tiền</span>
-                    <span>{formatCurrency(currentQuote.finalAmount)}</span>
-                  </p>
+                  <div className="pt-2 border-t border-[#2E2E38]">
+                    <p className="text-lg font-black text-[#E50914] flex justify-between">
+                      <span>Tổng tiền</span>
+                      <span>{formatCurrency(currentQuote.finalAmount)}</span>
+                    </p>
+                    {paymentMethod === 'PAYPAL' && (
+                      <p className="text-right text-xs text-zinc-400 mt-1">
+                        ≈ <strong className="text-sky-400 font-bold">${estimatedUsd} USD</strong>
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <p role="status" className="text-zinc-400 my-4 text-xs">
@@ -342,7 +446,11 @@ function CheckoutSession({ showtimeId }) {
                 onClick={submit}
                 className="bg-[#E50914] hover:bg-[#C24132] disabled:bg-[#1C1C24] disabled:text-zinc-600 text-white font-black rounded-xl w-full py-3.5 mt-6 shadow-lg shadow-red-900/40 text-xs uppercase tracking-wider transition transform active:scale-95 disabled:opacity-40 cursor-pointer"
               >
-                {submitting ? 'ĐANG ĐẶT VÉ…' : 'XÁC NHẬN ĐẶT VÉ'}
+                {submitting
+                  ? 'ĐANG XỬ LÝ…'
+                  : paymentMethod === 'PAYPAL'
+                  ? `THANH TOÁN PAYPAL ($${estimatedUsd})`
+                  : 'XÁC NHẬN ĐẶT VÉ'}
               </button>
               <Link
                 to={`/booking/${showtimeId}`}

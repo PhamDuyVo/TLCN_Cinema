@@ -71,7 +71,7 @@ export const Footer = () => {
           </h4>
           <div className="flex items-center gap-2 text-[#A1A1AA] mb-3">
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
-            <span>Thanh toán an toàn 100% qua MoMo, VNPay & Thẻ</span>
+            <span>Thanh toán an toàn 100% qua PayPal, Thẻ quốc tế & Tại quầy</span>
           </div>
           <p className="text-[#71717A] text-[11px] leading-relaxed">
             Hệ thống bán vé trực tuyến mã hóa SSL/TLS & Vé điện tử QR code đồng bộ chống trùng vé.

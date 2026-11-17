@@ -10,7 +10,7 @@ import bookingApi from '../api/bookingApi';
 import { canSelectSeat, comboItems, secondsRemaining, serverTime, timedHold } from './booking';
 
 vi.mock('../api/showtimeApi', () => ({ default: { getShowtimeSeats: vi.fn(), getHold: vi.fn(), putHold: vi.fn(), deleteHold: vi.fn() } }));
-vi.mock('../api/bookingApi', () => ({ default: { applyPromotion: vi.fn(), getCombos: vi.fn(), quote: vi.fn(), createBooking: vi.fn(), getBookingDetail: vi.fn() } }));
+vi.mock('../api/bookingApi', () => ({ default: { applyPromotion: vi.fn(), getCombos: vi.fn(), quote: vi.fn(), createBooking: vi.fn(), getBookingDetail: vi.fn(), createPayPalOrder: vi.fn(), capturePayPalOrder: vi.fn(), cancelBooking: vi.fn() } }));
 vi.mock('../components/booking/CinemaHall3D', () => ({ default: ({ selectedIds, seats, onToggle }) => <div><p>3D selection: {selectedIds.join(',')}</p><button onClick={() => onToggle(seats[0])}>3D toggle</button></div> }));
 const ok = data => ({ success: true, data });
 const seats = [{ id: 11, seatNumber: 'A1', seatRow: 'A', seatCol: 1, seatType: 'Standard', finalPrice: 90000, status: 'HOLDING' }, { id: 12, seatNumber: 'A2', seatRow: 'A', seatCol: 2, seatType: 'VIP', finalPrice: 110000, status: 'BOOKED' }];

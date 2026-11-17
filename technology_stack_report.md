@@ -88,7 +88,7 @@ Chuyển đổi phần Backend từ Node.js sang **Java Spring Boot 3.x** giúp 
      - `Seats`: Quản lý sơ đồ ghế (Loại ghế: Thường, VIP, Sweetbox; Trạng thái: Đang trống, Đã đặt, Đang giữ).
      - `Showtimes`: Quản lý suất chiếu (Phim, Phòng, Thời gian bắt đầu/kết thúc, Giá vé cơ bản).
      - `Bookings` & `Tickets`: Lưu thông tin đơn đặt vé, danh sách ghế chọn, tổng tiền, mã QR.
-     - `Payments`: Lưu lịch sử giao dịch thanh toán (Mã giao dịch, Phương thức: VNPay/MoMo/ZaloPay/Tiền mặt, Trạng thái).
+     - `Payments`: Lưu lịch sử giao dịch thanh toán (Mã giao dịch, Phương thức: PayPal Sandbox / Tiền mặt tại quầy, Trạng thái: PENDING/SUCCESS/REFUNDED).
      - `Promotions`: Quản lý mã giảm giá.
 
 2. **Dịch vụ Lưu trữ Đa phương tiện: Cloudinary CDN**

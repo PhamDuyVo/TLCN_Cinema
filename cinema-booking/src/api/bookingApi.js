@@ -7,6 +7,9 @@ export const bookingApi = {
   getMyBookings: () => axiosClient.get('/bookings/my-tickets'),
   applyPromotion: (data) => axiosClient.post('/promotions/apply', data),
   getCombos: () => axiosClient.get('/combos'),
+  createPayPalOrder: (bookingCode) => axiosClient.post('/payments/paypal/create-order', { bookingCode }),
+  capturePayPalOrder: (orderId) => axiosClient.post('/payments/paypal/capture-order', { orderId }),
+  cancelBooking: (code) => axiosClient.post(`/bookings/${code}/cancel`),
 };
 
 export default bookingApi;

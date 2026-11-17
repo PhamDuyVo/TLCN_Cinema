@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/cinemas/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
                         .requestMatchers("/promotions/**").permitAll()
-                        .requestMatchers("/payments/vnpay-ipn", "/payments/vnpay-return").permitAll()
+                        .requestMatchers("/payments/paypal-return", "/payments/paypal-cancel", "/payments/paypal/capture-order").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         // Admin endpoints
                         .requestMatchers("/admin/**", "/media/**").hasRole("ADMIN")

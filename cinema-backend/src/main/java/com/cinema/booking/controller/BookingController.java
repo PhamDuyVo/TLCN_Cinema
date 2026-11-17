@@ -21,14 +21,14 @@ public class BookingController {
 
     @PostMapping("/quote")
     public ResponseEntity<?> quote(@AuthenticationPrincipal UserPrincipal user, @RequestBody CreateBookingRequest request) {
-        if(user==null) return ResponseEntity.status(401).body(ApiResponse.error("Authentication required"));
-        return ResponseEntity.ok(ApiResponse.success(bookingService.quote(user.getId(),request)));
+        if (user == null) return ResponseEntity.status(401).body(ApiResponse.error("Authentication required"));
+        return ResponseEntity.ok(ApiResponse.success(bookingService.quote(user.getId(), request)));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<BookingDetailDto>> createBooking(@AuthenticationPrincipal UserPrincipal currentUser,
                                                                        @RequestBody CreateBookingRequest request) {
-        if(currentUser==null) return ResponseEntity.status(401).body(ApiResponse.error("Authentication required"));
+        if (currentUser == null) return ResponseEntity.status(401).body(ApiResponse.error("Authentication required"));
         Long userId = currentUser.getId();
         BookingDetailDto booking = bookingService.createBooking(userId, request);
         return ResponseEntity.ok(ApiResponse.success("Khởi tạo đơn đặt vé thành công!", booking));
@@ -36,7 +36,7 @@ public class BookingController {
 
     @GetMapping("/{code}")
     public ResponseEntity<ApiResponse<BookingDetailDto>> getBookingDetail(@PathVariable String code, @AuthenticationPrincipal UserPrincipal currentUser) {
-        if(currentUser==null) return ResponseEntity.status(401).body(ApiResponse.error("Authentication required"));
+        if (currentUser == null) return ResponseEntity.status(401).body(ApiResponse.error("Authentication required"));
         BookingDetailDto detail = bookingService.getBookingDetail(currentUser.getId(), code);
         return ResponseEntity.ok(ApiResponse.success(detail));
     }
@@ -48,5 +48,14 @@ public class BookingController {
         }
         List<BookingDetailDto> myBookings = bookingService.getMyBookings(currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(myBookings));
+    }
+
+    @PostMapping("/{code}/cancel")
+    public ResponseEntity<ApiResponse<BookingDetailDto>> cancelBooking(@PathVariable String code, @AuthenticationPrincipal UserPrincipal currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Authentication required"));
+        }
+        BookingDetailDto cancelled = bookingService.cancelBooking(currentUser.getId(), code);
+        return ResponseEntity.ok(ApiResponse.success("Hủy vé thành công!", cancelled));
     }
 }
