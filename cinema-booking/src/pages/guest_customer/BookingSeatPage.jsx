@@ -186,7 +186,7 @@ function BookingSession({ showtimeId }) {
           {own.length > 0 && !expired && (
             <div className="flex items-center gap-2 bg-[#1B1B23] border border-[#E50914] px-4 py-2 rounded-xl shadow-lg shadow-red-900/30">
               <Clock className="w-4 h-4 text-[#E50914] animate-pulse" />
-              <div className="text-right">
+              <div className="text-right"> 
                 <span className="text-[10px] text-zinc-400 block -mb-1">Thời gian giữ ghế</span>
                 <span className="text-lg font-black text-[#E50914] font-mono tracking-wider">
                   {formattedTime}
