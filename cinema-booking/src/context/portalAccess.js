@@ -3,7 +3,10 @@ export function portalRole(hostname) {
   if (hostname === 'staff.cinema.localhost') return 'staff';
   return 'customer';
 }
-export function assertPortalRole(user, hostname = window.location.hostname) {
+export function assertPortalRole(user, hostname = (typeof window !== 'undefined' ? window.location.hostname : '')) {
+  if (hostname === 'localhost') {
+    return;
+  }
   const expected = portalRole(hostname);
   if (user?.role?.toLowerCase() !== expected) {
     const labels = { admin: 'quản trị viên', staff: 'nhân viên', customer: 'khách hàng' };

@@ -42,11 +42,17 @@ import {
 
 export const AppRoutes = () => {
   const hostname = window.location.hostname;
+  const isSubdomain = hostname === 'admin.cinema.localhost' || hostname === 'staff.cinema.localhost';
   const portal = hostname === 'admin.cinema.localhost' ? 'admin' : hostname === 'staff.cinema.localhost' ? 'staff' : 'customer';
+
+  const showCustomer = !isSubdomain || portal === 'customer';
+  const showStaff = !isSubdomain || portal === 'staff';
+  const showAdmin = !isSubdomain || portal === 'admin';
+
   return (
     <Routes>
       {/* 1. Customer & Guest Routes */}
-      {portal === 'customer' && <Route element={<CustomerLayout />}>
+      {showCustomer && <Route element={<CustomerLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/movies" element={<MoviesPage />} />
         <Route path="/movies/:id" element={<MovieDetailPage />} />
@@ -64,25 +70,24 @@ export const AppRoutes = () => {
           <Route path="/profile" element={<UserProfilePage />} />
           <Route path="/my-tickets" element={<TicketHistoryPage />} />
         </Route>
-      </Route>
+      </Route>}
 
-      }
       {/* 2. Staff Routes */}
-      {portal === 'staff' && <>
+      {showStaff && <>
       <Route path="/staff/login" element={<StaffLoginPage />} />
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.STAFF]} loginPath="/staff/login" deniedPath="/staff/login" />}>
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.STAFF]} loginPath="/login" deniedPath="/login" />}>
         <Route element={<StaffLayout />}>
           <Route path="/staff/pos" element={<PosBookingPage />} />
           <Route path="/staff/checkin" element={<QrCheckInPage />} />
           <Route path="/staff/lookup" element={<TicketLookupPage />} />
         </Route>
       </Route>
-
       </>}
+
       {/* 3. Admin Routes */}
-      {portal === 'admin' && <>
+      {showAdmin && <>
       <Route path="/admin/login" element={<AdminLoginPage />} />
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} loginPath="/admin/login" deniedPath="/admin/login" />}>
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} loginPath="/login" deniedPath="/login" />}>
         <Route element={<AdminLayout />}>
           <Route path="/admin" element={<DashboardPage />} />
           <Route path="/admin/movies" element={<ManageMoviesPage />} />
@@ -94,6 +99,7 @@ export const AppRoutes = () => {
         </Route>
       </Route>
       </>}
+
       <Route path="*" element={<Navigate to={portal === 'admin' ? '/admin' : portal === 'staff' ? '/staff/pos' : '/'} replace />} />
     </Routes>
   );

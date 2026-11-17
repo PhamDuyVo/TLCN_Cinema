@@ -93,8 +93,11 @@ export const AuthPages = () => {
     try {
       const res = await login({ email: loginEmail, password: loginPassword });
       if (res.success) {
-        setSuccessMsg(`🎉 Đăng nhập thành công! Chào mừng ${res.data.user.fullName || res.data.user.full_name || 'bạn'} trở lại UTE Cinema!`);
-        setTimeout(() => navigate('/'), 1200);
+        const userRole = (res.data?.user?.role || '').toLowerCase();
+        const targetPath = userRole === 'admin' ? '/admin' : userRole === 'staff' ? '/staff/pos' : '/';
+        const roleLabel = userRole === 'admin' ? ' (Quản trị viên)' : userRole === 'staff' ? ' (Nhân viên)' : '';
+        setSuccessMsg(`🎉 Đăng nhập thành công! Chào mừng ${res.data.user.fullName || res.data.user.full_name || 'bạn'}${roleLabel} trở lại UTE Cinema!`);
+        setTimeout(() => navigate(targetPath), 1000);
       } else {
         setErrorMsg(res.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại!');
       }
@@ -244,8 +247,10 @@ export const AuthPages = () => {
         const res = await googleAuth({ token: tokenResponse.access_token });
 
         if (res.success) {
+          const userRole = (res.data?.user?.role || '').toLowerCase();
+          const targetPath = userRole === 'admin' ? '/admin' : userRole === 'staff' ? '/staff/pos' : '/';
           setSuccessMsg(`🎉 Đăng nhập Google thành công! Chào mừng ${res.data.user.fullName || res.data.user.email} trở lại UTE Cinema!`);
-          setTimeout(() => navigate('/'), 1200);
+          setTimeout(() => navigate(targetPath), 1000);
         }
       } catch (err) {
         setErrorMsg(err.response?.data?.message || err.message || 'Lỗi xác thực tài khoản Google!');
