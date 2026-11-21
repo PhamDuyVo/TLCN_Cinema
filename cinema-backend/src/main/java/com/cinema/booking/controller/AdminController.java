@@ -3,14 +3,17 @@ package com.cinema.booking.controller;
 import com.cinema.booking.dto.ApiResponse;
 import com.cinema.booking.dto.AuthDtos.UserDto;
 import com.cinema.booking.dto.MovieDtos.MovieDetailDto;
+import com.cinema.booking.dto.SeatStatusEvent;
 import com.cinema.booking.entity.*;
 import com.cinema.booking.repository.*;
 import com.cinema.booking.service.MovieService;
 import com.cinema.booking.service.AdminStatsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -37,6 +40,9 @@ public class AdminController {
     private final PromotionRepository promotionRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminStatsService adminStatsService;
+    private final TicketRepository ticketRepository;
+    private final ShowtimeSeatRepository showtimeSeatRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @GetMapping("/movies")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
@@ -530,26 +536,65 @@ public class AdminController {
     @GetMapping("/promotions")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<Promotion>>> getAllPromotions() {
-        return ResponseEntity.ok(ApiResponse.success(promotionRepository.findAll()));
+        return ResponseEntity.ok(ApiResponse.success(
+                promotionRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"))
+        ));
     }
 
     @PostMapping("/promotions")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Promotion>> createPromotion(@RequestBody Map<String, Object> payload) {
+        if (payload.get("code") == null || payload.get("code").toString().isBlank()) {
+            throw new IllegalArgumentException("Mã khuyến mãi không được để trống");
+        }
         String code = String.valueOf(payload.get("code")).toUpperCase().trim();
         if (promotionRepository.existsByCode(code)) {
-            throw new IllegalArgumentException("Mã khuyến mãi đã tồn tại");
+            throw new IllegalArgumentException("Mã khuyến mãi '" + code + "' đã tồn tại");
         }
+        if (payload.get("discountValue") == null || payload.get("discountValue").toString().isBlank()) {
+            throw new IllegalArgumentException("Giá trị giảm không được để trống");
+        }
+
+        String discountType = payload.get("discountType") != null ? String.valueOf(payload.get("discountType")) : "percent";
+        BigDecimal discountValue = new BigDecimal(payload.get("discountValue").toString());
+
+        BigDecimal minOrderAmount = BigDecimal.ZERO;
+        if (payload.get("minOrderAmount") != null && !payload.get("minOrderAmount").toString().isBlank()) {
+            minOrderAmount = new BigDecimal(payload.get("minOrderAmount").toString());
+        }
+
+        BigDecimal maxDiscountAmount = null;
+        if (payload.get("maxDiscountAmount") != null && !payload.get("maxDiscountAmount").toString().isBlank()) {
+            maxDiscountAmount = new BigDecimal(payload.get("maxDiscountAmount").toString());
+        }
+
+        LocalDateTime startDate = LocalDateTime.now();
+        if (payload.get("startDate") != null && !payload.get("startDate").toString().isBlank()) {
+            String s = payload.get("startDate").toString();
+            startDate = LocalDateTime.parse(s.contains("T") ? s : s + "T00:00:00");
+        }
+
+        LocalDateTime endDate = LocalDateTime.now().plusDays(30);
+        if (payload.get("endDate") != null && !payload.get("endDate").toString().isBlank()) {
+            String s = payload.get("endDate").toString();
+            endDate = LocalDateTime.parse(s.contains("T") ? s : s + "T23:59:59");
+        }
+
+        Integer usageLimit = null;
+        if (payload.get("usageLimit") != null && !payload.get("usageLimit").toString().isBlank()) {
+            usageLimit = Integer.parseInt(payload.get("usageLimit").toString());
+        }
+
         Promotion promo = Promotion.builder()
                 .code(code)
                 .description(payload.get("description") != null ? String.valueOf(payload.get("description")) : "")
-                .discountType(payload.get("discountType") != null ? String.valueOf(payload.get("discountType")) : "percent")
-                .discountValue(new BigDecimal(payload.get("discountValue").toString()))
-                .minOrderAmount(payload.get("minOrderAmount") != null ? new BigDecimal(payload.get("minOrderAmount").toString()) : BigDecimal.ZERO)
-                .maxDiscountAmount(payload.get("maxDiscountAmount") != null ? new BigDecimal(payload.get("maxDiscountAmount").toString()) : null)
-                .startDate(payload.get("startDate") != null ? LocalDateTime.parse(payload.get("startDate").toString().contains("T") ? payload.get("startDate").toString() : payload.get("startDate").toString() + "T00:00:00") : LocalDateTime.now())
-                .endDate(payload.get("endDate") != null ? LocalDateTime.parse(payload.get("endDate").toString().contains("T") ? payload.get("endDate").toString() : payload.get("endDate").toString() + "T23:59:59") : LocalDateTime.now().plusDays(30))
-                .usageLimit(payload.get("usageLimit") != null && !payload.get("usageLimit").toString().isBlank() ? Integer.parseInt(payload.get("usageLimit").toString()) : null)
+                .discountType(discountType)
+                .discountValue(discountValue)
+                .minOrderAmount(minOrderAmount)
+                .maxDiscountAmount(maxDiscountAmount)
+                .startDate(startDate)
+                .endDate(endDate)
+                .usageLimit(usageLimit)
                 .usedCount(0)
                 .status(payload.get("status") != null ? String.valueOf(payload.get("status")) : "active")
                 .build();
@@ -562,24 +607,46 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Promotion>> updatePromotion(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         Promotion promo = promotionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Khuyến mãi không tồn tại"));
-        if (payload.get("description") != null) promo.setDescription(String.valueOf(payload.get("description")));
-        if (payload.get("discountType") != null) promo.setDiscountType(String.valueOf(payload.get("discountType")));
-        if (payload.get("discountValue") != null) promo.setDiscountValue(new BigDecimal(payload.get("discountValue").toString()));
-        if (payload.get("minOrderAmount") != null) promo.setMinOrderAmount(new BigDecimal(payload.get("minOrderAmount").toString()));
-        if (payload.get("maxDiscountAmount") != null) promo.setMaxDiscountAmount(new BigDecimal(payload.get("maxDiscountAmount").toString()));
-        if (payload.get("startDate") != null) {
+
+        if (payload.containsKey("code") && payload.get("code") != null && !payload.get("code").toString().isBlank()) {
+            String newCode = payload.get("code").toString().toUpperCase().trim();
+            if (!newCode.equalsIgnoreCase(promo.getCode()) && promotionRepository.existsByCode(newCode)) {
+                throw new IllegalArgumentException("Mã khuyến mãi '" + newCode + "' đã tồn tại");
+            }
+            promo.setCode(newCode);
+        }
+        if (payload.containsKey("description")) {
+            promo.setDescription(payload.get("description") != null ? String.valueOf(payload.get("description")) : "");
+        }
+        if (payload.containsKey("discountType") && payload.get("discountType") != null) {
+            promo.setDiscountType(String.valueOf(payload.get("discountType")));
+        }
+        if (payload.containsKey("discountValue") && payload.get("discountValue") != null && !payload.get("discountValue").toString().isBlank()) {
+            promo.setDiscountValue(new BigDecimal(payload.get("discountValue").toString()));
+        }
+        if (payload.containsKey("minOrderAmount")) {
+            Object v = payload.get("minOrderAmount");
+            promo.setMinOrderAmount(v != null && !v.toString().isBlank() ? new BigDecimal(v.toString()) : BigDecimal.ZERO);
+        }
+        if (payload.containsKey("maxDiscountAmount")) {
+            Object v = payload.get("maxDiscountAmount");
+            promo.setMaxDiscountAmount(v != null && !v.toString().isBlank() ? new BigDecimal(v.toString()) : null);
+        }
+        if (payload.containsKey("startDate") && payload.get("startDate") != null && !payload.get("startDate").toString().isBlank()) {
             String s = payload.get("startDate").toString();
             promo.setStartDate(LocalDateTime.parse(s.contains("T") ? s : s + "T00:00:00"));
         }
-        if (payload.get("endDate") != null) {
+        if (payload.containsKey("endDate") && payload.get("endDate") != null && !payload.get("endDate").toString().isBlank()) {
             String s = payload.get("endDate").toString();
             promo.setEndDate(LocalDateTime.parse(s.contains("T") ? s : s + "T23:59:59"));
         }
-        if (payload.get("usageLimit") != null) {
-            String u = payload.get("usageLimit").toString();
-            promo.setUsageLimit(u.isBlank() ? null : Integer.parseInt(u));
+        if (payload.containsKey("usageLimit")) {
+            Object u = payload.get("usageLimit");
+            promo.setUsageLimit(u != null && !u.toString().isBlank() ? Integer.parseInt(u.toString()) : null);
         }
-        if (payload.get("status") != null) promo.setStatus(String.valueOf(payload.get("status")));
+        if (payload.containsKey("status") && payload.get("status") != null) {
+            promo.setStatus(String.valueOf(payload.get("status")));
+        }
         Promotion saved = promotionRepository.save(promo);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật khuyến mãi thành công!", saved));
     }
@@ -604,7 +671,14 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Void>> deletePromotion(@PathVariable Long id) {
         Promotion promo = promotionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Khuyến mãi không tồn tại"));
-        promotionRepository.delete(promo);
+        if (promo.getUsedCount() != null && promo.getUsedCount() > 0) {
+            throw new IllegalArgumentException("Không thể xóa khuyến mãi đã có lượt sử dụng (" + promo.getUsedCount() + " lượt). Bạn có thể chọn tạm khóa mã này.");
+        }
+        try {
+            promotionRepository.delete(promo);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new IllegalArgumentException("Không thể xóa khuyến mãi do đã được liên kết với đơn đặt vé. Bạn có thể chọn tạm khóa mã này.");
+        }
         return ResponseEntity.ok(ApiResponse.success("Xóa khuyến mãi thành công!", null));
     }
 
@@ -614,6 +688,7 @@ public class AdminController {
 
     @GetMapping("/bookings")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAdminBookings(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -626,6 +701,23 @@ public class AdminController {
             if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
             return b.getCreatedAt().compareTo(a.getCreatedAt());
         });
+
+        // Tính toán thống kê KPI tổng quan
+        long totalOrders = all.size();
+        long paidOrders = all.stream().filter(b -> "PAID".equalsIgnoreCase(b.getStatus())).count();
+        long pendingOrders = all.stream().filter(b -> "PENDING_PAYMENT".equalsIgnoreCase(b.getStatus()) || "PENDING".equalsIgnoreCase(b.getStatus())).count();
+        long cancelledOrders = all.stream().filter(b -> "CANCELLED".equalsIgnoreCase(b.getStatus())).count();
+        BigDecimal totalRevenue = all.stream()
+                .filter(b -> "PAID".equalsIgnoreCase(b.getStatus()) && b.getFinalAmount() != null)
+                .map(Booking::getFinalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("totalOrders", totalOrders);
+        summary.put("paidOrders", paidOrders);
+        summary.put("pendingOrders", pendingOrders);
+        summary.put("cancelledOrders", cancelledOrders);
+        summary.put("totalRevenue", totalRevenue);
 
         if (status != null && !status.isBlank() && !"all".equalsIgnoreCase(status)) {
             all = all.stream().filter(b -> status.equalsIgnoreCase(b.getStatus())).collect(Collectors.toList());
@@ -655,9 +747,19 @@ public class AdminController {
             map.put("customerEmail", b.getCustomerEmail());
             map.put("customerPhone", b.getCustomerPhone());
             map.put("status", b.getStatus());
-            map.put("finalAmount", b.getFinalAmount());
+            map.put("seatAmount", b.getSeatAmount());
+            map.put("comboAmount", b.getComboAmount());
             map.put("discountAmount", b.getDiscountAmount());
+            map.put("finalAmount", b.getFinalAmount());
+            map.put("paymentMethod", b.getPaymentMethod());
+            map.put("expiresAt", b.getExpiresAt());
             map.put("createdAt", b.getCreatedAt());
+
+            if (b.getPromotion() != null) {
+                map.put("promotionCode", b.getPromotion().getCode());
+                map.put("promotionDiscountType", b.getPromotion().getDiscountType());
+                map.put("promotionDiscountValue", b.getPromotion().getDiscountValue());
+            }
 
             if (b.getShowtime() != null) {
                 map.put("movieTitle", b.getShowtime().getMovie() != null ? b.getShowtime().getMovie().getTitle() : "");
@@ -669,12 +771,14 @@ public class AdminController {
                 }
             }
 
+            // Danh sách vé
             List<Map<String, Object>> ticketDtos = b.getTickets().stream().map(t -> {
                 Map<String, Object> tm = new LinkedHashMap<>();
                 tm.put("id", t.getId());
                 tm.put("ticketCode", t.getTicketCode());
                 tm.put("price", t.getPrice());
                 tm.put("status", t.getStatus());
+                tm.put("checkedInAt", t.getCheckedInAt());
                 if (t.getSeat() != null) {
                     tm.put("seatRow", t.getSeat().getSeatRow());
                     tm.put("seatCol", t.getSeat().getSeatCol());
@@ -688,6 +792,19 @@ public class AdminController {
             map.put("tickets", ticketDtos);
             map.put("ticketCount", ticketDtos.size());
 
+            // Danh sách combo F&B
+            List<Map<String, Object>> comboDtos = b.getCombos().stream().map(c -> {
+                Map<String, Object> cm = new LinkedHashMap<>();
+                cm.put("id", c.getId());
+                cm.put("comboName", c.getCombo() != null ? c.getCombo().getName() : "Combo");
+                cm.put("quantity", c.getQuantity());
+                cm.put("unitPrice", c.getUnitPrice());
+                cm.put("totalPrice", c.getUnitPrice() != null ? c.getUnitPrice().multiply(BigDecimal.valueOf(c.getQuantity())) : BigDecimal.ZERO);
+                return cm;
+            }).collect(Collectors.toList());
+            map.put("combos", comboDtos);
+            map.put("comboCount", comboDtos.size());
+
             return map;
         }).collect(Collectors.toList());
 
@@ -696,7 +813,144 @@ public class AdminController {
         response.put("totalElements", totalElements);
         response.put("totalPages", totalPages);
         response.put("currentPage", page);
+        response.put("summary", summary);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PatchMapping("/bookings/{id}/confirm-payment")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<ApiResponse<String>> confirmBookingPayment(@PathVariable Long id) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn đặt vé"));
+
+        String status = booking.getStatus() != null ? booking.getStatus().toUpperCase() : "";
+        if ("PAID".equals(status)) {
+            throw new IllegalArgumentException("Đơn đặt vé này đã được thanh toán rồi");
+        }
+        if ("CANCELLED".equals(status)) {
+            throw new IllegalArgumentException("Đơn đặt vé đã bị hủy, không thể xác nhận thanh toán");
+        }
+
+        booking.setStatus("PAID");
+        if (booking.getTickets() != null) {
+            for (Ticket ticket : booking.getTickets()) {
+                if (!"cancelled".equalsIgnoreCase(ticket.getStatus()) && !"checked_in".equalsIgnoreCase(ticket.getStatus())) {
+                    ticket.setStatus("valid");
+                    ticketRepository.save(ticket);
+                }
+            }
+        }
+
+        // Tạo hoặc cập nhật bản ghi thanh toán tại quầy
+        List<Payment> existingPayments = paymentRepository.findAll().stream()
+                .filter(p -> p.getBookingId().equals(booking.getId()))
+                .collect(Collectors.toList());
+
+        Optional<Payment> pendingPayment = existingPayments.stream()
+                .filter(p -> "PENDING".equalsIgnoreCase(p.getStatus()))
+                .findFirst();
+
+        if (pendingPayment.isPresent()) {
+            Payment p = pendingPayment.get();
+            p.setStatus("SUCCESS");
+            p.setPaidAt(LocalDateTime.now());
+            paymentRepository.save(p);
+        } else if (existingPayments.isEmpty()) {
+            Payment payment = Payment.builder()
+                    .bookingId(booking.getId())
+                    .txnRef("COUNTER-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                    .amount(booking.getFinalAmount() != null ? booking.getFinalAmount() : BigDecimal.ZERO)
+                    .paymentMethod(booking.getPaymentMethod() != null ? booking.getPaymentMethod() : "PAY_AT_COUNTER")
+                    .status("SUCCESS")
+                    .paidAt(LocalDateTime.now())
+                    .build();
+            paymentRepository.save(payment);
+        }
+
+        bookingRepository.save(booking);
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận thanh toán đơn hàng thành công!"));
+    }
+
+    @PatchMapping("/bookings/{id}/cancel")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<ApiResponse<String>> cancelAdminBooking(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> payload) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn đặt vé"));
+
+        String status = booking.getStatus() != null ? booking.getStatus().toUpperCase() : "";
+        if ("CANCELLED".equals(status)) {
+            throw new IllegalArgumentException("Đơn đặt vé này đã bị hủy trước đó");
+        }
+
+        booking.setStatus("CANCELLED");
+
+        // Hủy trạng thái các vé và nhả ghế
+        List<Long> seatIds = new ArrayList<>();
+        if (booking.getTickets() != null) {
+            for (Ticket ticket : booking.getTickets()) {
+                ticket.setStatus("cancelled");
+                ticketRepository.save(ticket);
+                if (ticket.getSeat() != null) {
+                    seatIds.add(ticket.getSeat().getId());
+                }
+            }
+        }
+
+        // Nhả ghế về available
+        if (booking.getShowtime() != null && !seatIds.isEmpty()) {
+            Long showtimeId = booking.getShowtime().getId();
+            List<ShowtimeSeat> seats = showtimeSeatRepository.findByShowtimeId(showtimeId);
+            for (ShowtimeSeat ss : seats) {
+                if (seatIds.contains(ss.getSeatId())) {
+                    ss.setStatus("available");
+                    ss.setHeldByUserId(null);
+                    ss.setHoldExpiresAt(null);
+                    showtimeSeatRepository.save(ss);
+                }
+            }
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new SeatStatusEvent(showtimeId, seatIds, "AVAILABLE", null, null));
+            }
+        }
+
+        // Hoàn trả lượt sử dụng voucher nếu có
+        if (booking.getPromotion() != null) {
+            Promotion promo = booking.getPromotion();
+            promo.setUsedCount(Math.max(0, promo.getUsedCount() - 1));
+            promotionRepository.save(promo);
+        }
+
+        bookingRepository.save(booking);
+        return ResponseEntity.ok(ApiResponse.success("Hủy đơn hàng thành công, ghế đã được mở lại!"));
+    }
+
+    @PatchMapping("/bookings/tickets/{ticketId}/check-in")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkInTicket(@PathVariable Long ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Vé không tồn tại"));
+
+        if ("checked_in".equalsIgnoreCase(ticket.getStatus()) || "used".equalsIgnoreCase(ticket.getStatus())) {
+            throw new IllegalArgumentException("Vé này đã được soát vào rạp trước đó rồi!");
+        }
+        if ("cancelled".equalsIgnoreCase(ticket.getStatus())) {
+            throw new IllegalArgumentException("Vé đã bị hủy, không thể soát!");
+        }
+
+        ticket.setStatus("checked_in");
+        ticket.setCheckedInAt(LocalDateTime.now());
+        ticketRepository.save(ticket);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("ticketId", ticket.getId());
+        res.put("ticketCode", ticket.getTicketCode());
+        res.put("status", "checked_in");
+        res.put("checkedInAt", ticket.getCheckedInAt());
+
+        return ResponseEntity.ok(ApiResponse.success("Soát vé thành công!", res));
     }
 
     @GetMapping("/payments")

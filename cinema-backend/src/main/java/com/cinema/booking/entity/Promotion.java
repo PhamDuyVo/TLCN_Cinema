@@ -27,11 +27,39 @@ public class Promotion {
 
     @Transient
     private Integer discountPercent;
-    @Column(name="discount_type",nullable=false) @Builder.Default private String discountType="percent";
-    @Column(name="discount_value",nullable=false) private BigDecimal discountValue;
-    public Integer getDiscountPercent() { return "percent".equals(discountType) && discountValue!=null ? discountValue.intValue() : discountPercent; }
-    public void setDiscountPercent(Integer value) { discountPercent=value; discountType="percent"; discountValue=value==null?null:BigDecimal.valueOf(value); }
-    @PrePersist @PreUpdate void mapLegacyPercent() { if(discountValue==null && discountPercent!=null) discountValue=BigDecimal.valueOf(discountPercent); }
+
+    @Column(name="discount_type", nullable=false)
+    @Builder.Default
+    private String discountType = "percent";
+
+    @Column(name="discount_value", nullable=false)
+    private BigDecimal discountValue;
+
+    public Integer getDiscountPercent() {
+        if ("percent".equals(discountType) && discountValue != null) {
+            return discountValue.intValue();
+        }
+        return discountPercent;
+    }
+
+    public void setDiscountPercent(Integer value) {
+        this.discountPercent = value;
+        if (value != null) {
+            this.discountType = "percent";
+            this.discountValue = BigDecimal.valueOf(value);
+        }
+    }
+
+    @PrePersist
+    @PreUpdate
+    void mapLegacyPercent() {
+        if (discountValue == null && discountPercent != null) {
+            discountValue = BigDecimal.valueOf(discountPercent);
+            if (discountType == null) {
+                discountType = "percent";
+            }
+        }
+    }
 
 
     @Column(name = "max_discount_amount", precision = 10, scale = 2)

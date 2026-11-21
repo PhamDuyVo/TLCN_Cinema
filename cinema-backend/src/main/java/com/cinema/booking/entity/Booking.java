@@ -50,7 +50,9 @@ public class Booking {
     private BigDecimal totalAmount;
     @Column(name="seat_amount",nullable=false) @Builder.Default private BigDecimal seatAmount=BigDecimal.ZERO;
     @Column(name="combo_amount",nullable=false) @Builder.Default private BigDecimal comboAmount=BigDecimal.ZERO;
-    public BigDecimal getTotalAmount() { return seatAmount.add(comboAmount); }
+    public BigDecimal getTotalAmount() {
+        return (seatAmount != null ? seatAmount : BigDecimal.ZERO).add(comboAmount != null ? comboAmount : BigDecimal.ZERO);
+    }
 
 
     @Column(name = "discount_amount", precision = 10, scale = 2)
