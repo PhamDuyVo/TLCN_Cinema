@@ -46,6 +46,9 @@ export const adminApi = {
   // Đơn hàng & Thanh toán
   getBookings: (params) => axiosClient.get('/admin/bookings', { params }),
   getPayments: (params) => axiosClient.get('/admin/payments', { params }),
+  confirmBookingPayment: (id) => axiosClient.patch(`/admin/bookings/${id}/confirm-payment`),
+  cancelAdminBooking: (id, reason) => axiosClient.patch(`/admin/bookings/${id}/cancel`, { reason }),
+  checkInTicket: (ticketId) => axiosClient.patch(`/admin/bookings/tickets/${ticketId}/check-in`),
 
   // Khuyến mãi (Promotions)
   getPromotions: () => axiosClient.get('/admin/promotions'),

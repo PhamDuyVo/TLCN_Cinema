@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import adminApi from '../../api/adminApi';
 import { mediaApi } from '../../api/mediaApi';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from 'recharts';
-import { Film, DollarSign, Users, Ticket, TrendingUp, Calendar, Plus, Pencil, X, Check, Building2, ChevronRight, ArrowLeft, Grid, Eye, Lock, Unlock, Trash2, CreditCard, Receipt, Search, Filter, RefreshCw } from 'lucide-react';
+import { Film, DollarSign, Users, Ticket, TrendingUp, Calendar, Plus, Pencil, X, Check, Building2, ChevronRight, ArrowLeft, Grid, Eye, Lock, Unlock, Trash2, CreditCard, Receipt, Search, Filter, RefreshCw, Copy, Tag, CheckCircle, XCircle, AlertTriangle, ShoppingBag, Printer, ShieldCheck } from 'lucide-react';
 
 export const DashboardPage = () => {
   const [stats, setStats] = useState(null);
@@ -1291,7 +1291,7 @@ export const ManageUsersPage = () => {
 const promoError = (e) => e?.response?.data?.message || e?.response?.data?.error?.message || e?.message || 'Không thể thực hiện thao tác';
 const emptyPromo = () => ({
   code: '', name: '', discountType: 'PERCENTAGE', discountValue: '',
-  minOrderAmount: '', maxUsage: '', startDate: '', endDate: '', isActive: true,
+  maxDiscountAmount: '', minOrderAmount: '', maxUsage: '', startDate: '', endDate: '', isActive: true,
 });
 
 function promoStatus(p) {
@@ -1303,9 +1303,9 @@ function promoStatus(p) {
 }
 
 const PROMO_BADGE = {
-  active: 'bg-emerald-700 text-emerald-100',
-  inactive: 'bg-red-700 text-red-100',
-  expired: 'bg-zinc-600 text-zinc-300',
+  active: 'bg-emerald-950/80 text-emerald-400 border border-emerald-800',
+  inactive: 'bg-amber-950/80 text-amber-400 border border-amber-800',
+  expired: 'bg-zinc-800 text-zinc-400 border border-zinc-700',
 };
 const PROMO_LABEL = { active: 'Đang hoạt động', inactive: 'Tạm khóa', expired: 'Hết hạn' };
 
@@ -1319,8 +1319,11 @@ export const ManagePromotionsPage = () => {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyPromo());
   const [formError, setFormError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [copiedCode, setCopiedCode] = useState('');
 
-  const inputCls = 'bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-red-500 w-full mt-1';
+  const inputCls = 'bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-red-500 w-full mt-1';
 
   const loadPromotions = () => {
     setLoading(true); setError('');
@@ -1331,6 +1334,12 @@ export const ManagePromotionsPage = () => {
   };
 
   useEffect(() => { loadPromotions(); }, []);
+
+  const copyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(''), 2000);
+  };
 
   const openCreate = () => {
     setEditId(null); setForm(emptyPromo());
@@ -1345,6 +1354,7 @@ export const ManagePromotionsPage = () => {
       name: p.description || p.name || '',
       discountType: p.discountType === 'amount' ? 'FIXED_AMOUNT' : 'PERCENTAGE',
       discountValue: p.discountValue != null ? String(p.discountValue) : String(p.discountPercent ?? ''),
+      maxDiscountAmount: p.maxDiscountAmount != null ? String(p.maxDiscountAmount) : '',
       minOrderAmount: p.minOrderAmount != null ? String(p.minOrderAmount) : '',
       maxUsage: p.usageLimit != null ? String(p.usageLimit) : '',
       startDate: p.startDate ? p.startDate.substring(0, 10) : '',
@@ -1359,24 +1369,30 @@ export const ManagePromotionsPage = () => {
 
   const submitForm = async (e) => {
     e.preventDefault(); setFormError('');
-    if (!form.code.trim()) { setFormError('Vui lòng nhập mã code.'); return; }
+    if (!form.code.trim()) { setFormError('Vui lòng nhập mã code khuyến mãi.'); return; }
     if (!form.discountValue || isNaN(Number(form.discountValue)) || Number(form.discountValue) <= 0) {
-      setFormError('Giá trị giảm phải là số dương.'); return;
+      setFormError('Giá trị giảm phải là số dương lớn hơn 0.'); return;
     }
-    if (form.startDate && form.endDate && form.endDate <= form.startDate) {
-      setFormError('Ngày hết hạn phải sau ngày bắt đầu.'); return;
+    if (form.discountType === 'PERCENTAGE' && Number(form.discountValue) > 100) {
+      setFormError('Phần trăm giảm giá không được vượt quá 100%.'); return;
     }
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      setFormError('Ngày hết hạn phải từ ngày bắt đầu trở đi.'); return;
+    }
+
     const payload = {
       code: form.code.trim().toUpperCase(),
       description: form.name.trim(),
       discountType: form.discountType === 'PERCENTAGE' ? 'percent' : 'amount',
       discountValue: Number(form.discountValue),
+      maxDiscountAmount: form.maxDiscountAmount ? Number(form.maxDiscountAmount) : null,
       minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : 0,
       usageLimit: form.maxUsage ? Number(form.maxUsage) : null,
       startDate: form.startDate ? form.startDate + 'T00:00:00' : null,
       endDate: form.endDate ? form.endDate + 'T23:59:59' : null,
       status: form.isActive ? 'active' : 'inactive',
     };
+
     setSaving(true);
     try {
       if (editId) {
@@ -1384,7 +1400,7 @@ export const ManagePromotionsPage = () => {
         setNotice('Đã cập nhật khuyến mãi thành công.');
       } else {
         await adminApi.createPromotion(payload);
-        setNotice('Đã thêm khuyến mãi thành công.');
+        setNotice('Đã thêm khuyến mãi mới thành công.');
       }
       closeForm(); loadPromotions();
     } catch (e) { setFormError(promoError(e)); }
@@ -1393,22 +1409,22 @@ export const ManagePromotionsPage = () => {
 
   const toggleStatus = async (p) => {
     const nextActive = promoStatus(p) !== 'active';
-    if (!window.confirm(`Bạn có chắc muốn ${nextActive ? 'kích hoạt' : 'khóa'} mã "${p.code}"?`)) return;
+    if (!window.confirm(`Bạn có chắc muốn ${nextActive ? 'kích hoạt' : 'tạm khóa'} mã "${p.code}"?`)) return;
     setSaving(true); setError(''); setNotice('');
     try {
       await adminApi.togglePromotionStatus(p.id, nextActive);
-      setNotice(`Đã ${nextActive ? 'kích hoạt' : 'khóa'} mã khuyến mãi.`);
+      setNotice(`Đã ${nextActive ? 'kích hoạt' : 'tạm khóa'} mã khuyến mãi "${p.code}".`);
       loadPromotions();
     } catch (e) { setError(promoError(e)); }
     finally { setSaving(false); }
   };
 
   const deletePromo = async (p) => {
-    if (!window.confirm(`Xóa mã "${p.code}"? Thao tác này không thể hoàn tác.`)) return;
+    if (!window.confirm(`Xóa mã khuyến mãi "${p.code}"? Thao tác này không thể hoàn tác.`)) return;
     setSaving(true); setError(''); setNotice('');
     try {
       await adminApi.deletePromotion(p.id);
-      setNotice('Đã xóa khuyến mãi.');
+      setNotice(`Đã xóa khuyến mãi "${p.code}".`);
       loadPromotions();
     } catch (e) { setError(promoError(e)); }
     finally { setSaving(false); }
@@ -1418,33 +1434,99 @@ export const ManagePromotionsPage = () => {
   const fmtVal = (p) => {
     const type = p.discountType;
     const val = p.discountValue ?? p.discountPercent;
-    if (type === 'percent' || type === 'PERCENTAGE') return `${val}%`;
+    if (type === 'percent' || type === 'PERCENTAGE') {
+      const cap = p.maxDiscountAmount ? ` (Tối đa ${formatCurrency(p.maxDiscountAmount)})` : '';
+      return `${val}%${cap}`;
+    }
     if (val != null) return formatCurrency(val);
     return '—';
   };
 
+  const filteredPromotions = promotions.filter((p) => {
+    const st = promoStatus(p);
+    if (statusFilter !== 'all' && st !== statusFilter) return false;
+    if (searchTerm.trim()) {
+      const kw = searchTerm.toLowerCase().trim();
+      const codeMatch = (p.code || '').toLowerCase().includes(kw);
+      const descMatch = (p.description || p.name || '').toLowerCase().includes(kw);
+      return codeMatch || descMatch;
+    }
+    return true;
+  });
+
+  const activeCount = promotions.filter((p) => promoStatus(p) === 'active').length;
+  const inactiveCount = promotions.filter((p) => promoStatus(p) === 'inactive').length;
+  const expiredCount = promotions.filter((p) => promoStatus(p) === 'expired').length;
+  const totalUsed = promotions.reduce((acc, p) => acc + (p.usedCount || 0), 0);
+
   return (
     <div className="space-y-6 text-zinc-100">
       {/* Header */}
-      <div className="flex justify-between items-center gap-3">
-        <h1 className="text-xl font-bold">QUẢN LÝ CHƯƠNG TRÌNH KHUYẾN MÃI</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-2 text-white">
+            <Tag className="w-5 h-5 text-red-500" />
+            QUẢN LÝ CHƯƠNG TRÌNH KHUYẾN MÃI
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">Tạo và quản lý mã voucher giảm giá cho khách hàng đặt vé</p>
+        </div>
         <button
           disabled={saving}
           onClick={showForm ? closeForm : openCreate}
-          className="bg-red-600 hover:bg-red-700 rounded-lg px-4 py-2 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+          className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 disabled:opacity-50 transition shadow"
         >
-          <Plus size={16} />{showForm ? 'Đóng form' : 'Thêm khuyến mãi'}
+          {showForm ? <X size={16} /> : <Plus size={16} />}
+          {showForm ? 'Đóng form' : 'Thêm khuyến mãi'}
         </button>
       </div>
 
-      {/* Notices */}
-      {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
-      {notice && <p role="status" className="text-emerald-400 text-sm">{notice}</p>}
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+          <span className="text-xs text-zinc-400">Tổng chương trình</span>
+          <div className="text-2xl font-bold text-white mt-1">{promotions.length}</div>
+        </div>
+        <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+          <span className="text-xs text-emerald-400 font-medium">Đang hoạt động</span>
+          <div className="text-2xl font-bold text-emerald-400 mt-1">{activeCount}</div>
+        </div>
+        <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+          <span className="text-xs text-amber-400 font-medium">Tạm khóa</span>
+          <div className="text-2xl font-bold text-amber-400 mt-1">{inactiveCount}</div>
+        </div>
+        <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+          <span className="text-xs text-zinc-400 font-medium">Tổng lượt đã dùng</span>
+          <div className="text-2xl font-bold text-zinc-200 mt-1">{totalUsed}</div>
+        </div>
+      </div>
 
-      {/* Form */}
+      {/* Alerts */}
+      {error && (
+        <div className="p-3 bg-red-950/40 border border-red-800 rounded-xl text-red-300 text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-white"><X size={14} /></button>
+        </div>
+      )}
+      {notice && (
+        <div className="p-3 bg-emerald-950/40 border border-emerald-800 rounded-xl text-emerald-300 text-sm flex items-center justify-between">
+          <span>{notice}</span>
+          <button onClick={() => setNotice('')} className="text-emerald-400 hover:text-white"><X size={14} /></button>
+        </div>
+      )}
+
+      {/* Form Add / Edit */}
       {showForm && (
-        <form onSubmit={submitForm} className="bg-[#141414] border border-zinc-800 rounded-xl p-6 space-y-4">
-          <h2 className="font-bold text-base">{editId ? 'Chỉnh sửa khuyến mãi' : 'Thêm khuyến mãi mới'}</h2>
+        <form onSubmit={submitForm} className="bg-[#141414] border border-zinc-800 rounded-xl p-6 space-y-4 shadow-xl">
+          <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+            <h2 className="font-bold text-base text-white flex items-center gap-2">
+              <Pencil size={16} className="text-red-500" />
+              {editId ? 'Chỉnh sửa khuyến mãi' : 'Thêm khuyến mãi mới'}
+            </h2>
+            <button type="button" onClick={closeForm} className="text-zinc-400 hover:text-white">
+              <X size={18} />
+            </button>
+          </div>
+
           <fieldset disabled={saving} className="grid md:grid-cols-2 gap-4 disabled:opacity-60">
             {/* Code */}
             <label className="text-sm">
@@ -1452,20 +1534,22 @@ export const ManagePromotionsPage = () => {
               <input
                 type="text" required maxLength={50}
                 value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                className={inputCls} placeholder="VD: CINEMA20"
+                onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+                className={inputCls} placeholder="VD: CHAOBANMOI, VIP20"
               />
             </label>
-            {/* Name */}
+
+            {/* Name / Description */}
             <label className="text-sm">
-              Tên chương trình
+              Tên chương trình / Mô tả
               <input
                 type="text" maxLength={255}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className={inputCls} placeholder="Giảm 20% dịp khai trương"
+                className={inputCls} placeholder="VD: Chào bạn mới - Giảm 20k đơn từ 100k"
               />
             </label>
+
             {/* Discount Type */}
             <label className="text-sm">
               Loại giảm giá <span className="text-red-400">*</span>
@@ -1474,17 +1558,32 @@ export const ManagePromotionsPage = () => {
                 <option value="FIXED_AMOUNT">Số tiền cố định (VNĐ)</option>
               </select>
             </label>
+
             {/* Discount Value */}
             <label className="text-sm">
               Giá trị giảm <span className="text-red-400">*</span>
               <input
-                type="number" required min="0" step="0.01"
+                type="number" required min="0" step="any"
                 value={form.discountValue}
                 onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
                 className={inputCls}
-                placeholder={form.discountType === 'PERCENTAGE' ? 'VD: 20 (%)' : 'VD: 50000 (VNĐ)'}
+                placeholder={form.discountType === 'PERCENTAGE' ? 'VD: 20 (%)' : 'VD: 30000 (VNĐ)'}
               />
             </label>
+
+            {/* Max Discount Amount (chỉ hiển thị khi loại là PERCENTAGE) */}
+            {form.discountType === 'PERCENTAGE' && (
+              <label className="text-sm">
+                Giảm tối đa (VNĐ) <span className="text-zinc-400 text-xs">— để trống = không giới hạn trần</span>
+                <input
+                  type="number" min="0" step="1000"
+                  value={form.maxDiscountAmount}
+                  onChange={(e) => setForm({ ...form, maxDiscountAmount: e.target.value })}
+                  className={inputCls} placeholder="VD: 50000"
+                />
+              </label>
+            )}
+
             {/* Min Order Amount */}
             <label className="text-sm">
               Đơn tối thiểu (VNĐ) <span className="text-zinc-400 text-xs">— tuỳ chọn</span>
@@ -1495,6 +1594,7 @@ export const ManagePromotionsPage = () => {
                 className={inputCls} placeholder="VD: 100000"
               />
             </label>
+
             {/* Max Usage */}
             <label className="text-sm">
               Số lần dùng tối đa <span className="text-zinc-400 text-xs">— để trống = không giới hạn</span>
@@ -1505,6 +1605,7 @@ export const ManagePromotionsPage = () => {
                 className={inputCls} placeholder="VD: 100"
               />
             </label>
+
             {/* Start Date */}
             <label className="text-sm">
               Ngày bắt đầu <span className="text-red-400">*</span>
@@ -1515,6 +1616,7 @@ export const ManagePromotionsPage = () => {
                 className={inputCls}
               />
             </label>
+
             {/* End Date */}
             <label className="text-sm">
               Ngày hết hạn <span className="text-red-400">*</span>
@@ -1526,78 +1628,151 @@ export const ManagePromotionsPage = () => {
                 className={inputCls}
               />
             </label>
+
             {/* isActive */}
-            <label className="text-sm flex items-center gap-3 md:col-span-2 mt-1 cursor-pointer select-none">
+            <label className="text-sm flex items-center gap-3 md:col-span-2 mt-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={form.isActive}
                 onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                className="w-4 h-4 accent-red-500"
+                className="w-4 h-4 accent-red-500 rounded"
               />
-              Kích hoạt ngay sau khi lưu
+              <span className="text-zinc-200">Kích hoạt mã khuyến mãi ngay sau khi lưu</span>
             </label>
           </fieldset>
-          {formError && <p role="alert" className="text-red-400 text-sm">{formError}</p>}
-          <div className="flex gap-3">
-            <button type="submit" disabled={saving} className="bg-red-600 hover:bg-red-700 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
-              {saving ? 'Đang lưu…' : editId ? 'Cập nhật' : 'Thêm mới'}
+
+          {formError && (
+            <div className="p-3 bg-red-950/40 border border-red-800 rounded-lg text-red-300 text-sm">
+              {formError}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-5 py-2.5 text-sm font-semibold disabled:opacity-50 transition"
+            >
+              {saving ? 'Đang lưu…' : editId ? 'Cập nhật khuyến mãi' : 'Thêm mới khuyến mãi'}
             </button>
-            <button type="button" disabled={saving} onClick={closeForm} className="rounded-lg px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-800">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={closeForm}
+              className="rounded-lg px-4 py-2.5 text-sm border border-zinc-700 hover:bg-zinc-800 text-zinc-300 transition"
+            >
               Hủy
             </button>
           </div>
         </form>
       )}
 
+      {/* Filter & Search Bar */}
+      <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row gap-4 justify-between items-center">
+        <div className="relative flex-1 w-full">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo mã code hoặc tên chương trình..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-red-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <span className="text-xs text-zinc-400 font-medium whitespace-nowrap">Trạng thái:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-red-500"
+          >
+            <option value="all">Tất cả ({promotions.length})</option>
+            <option value="active">Đang hoạt động ({activeCount})</option>
+            <option value="inactive">Tạm khóa ({inactiveCount})</option>
+            <option value="expired">Hết hạn ({expiredCount})</option>
+          </select>
+          <button
+            onClick={loadPromotions}
+            className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition"
+            title="Làm mới danh sách"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Table */}
       {loading ? (
-        <p role="status" className="text-zinc-400">Đang tải danh sách khuyến mãi…</p>
+        <div className="p-8 text-center text-zinc-400 bg-[#141414] rounded-xl border border-zinc-800">
+          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-red-500" />
+          Đang tải danh sách khuyến mãi…
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-[#141414]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#141414] border-b border-zinc-800">
+            <thead className="bg-zinc-900/80 text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
               <tr>
                 {['Mã Code', 'Tên chương trình', 'Loại giảm', 'Giá trị', 'Đơn tối thiểu', 'Bắt đầu', 'Hết hạn', 'Lượt dùng', 'Trạng thái', 'Hành động'].map((h) => (
-                  <th key={h} className="p-3 text-zinc-400 font-semibold whitespace-nowrap">{h}</th>
+                  <th key={h} className="p-3.5 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {promotions.map((p) => {
+            <tbody className="divide-y divide-zinc-800/80">
+              {filteredPromotions.map((p) => {
                 const st = promoStatus(p);
                 const usedCount = p.usedCount ?? 0;
                 const canDelete = usedCount === 0;
                 const isExpired = st === 'expired';
                 return (
-                  <tr key={p.id} className="border-t border-zinc-800 hover:bg-zinc-900/50">
-                    <td className="p-3 font-mono font-semibold text-amber-300">{p.code}</td>
-                    <td className="p-3 text-zinc-200">{p.description || p.name || '—'}</td>
-                    <td className="p-3 text-zinc-300">
-                      {p.discountType === 'percent' || p.discountType === 'PERCENTAGE' ? 'Phần trăm (%)' : 'Cố định (VNĐ)'}
+                  <tr key={p.id} className="hover:bg-zinc-900/40 transition">
+                    <td className="p-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-amber-300 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 rounded text-xs">
+                          {p.code}
+                        </span>
+                        <button
+                          onClick={() => copyCode(p.code)}
+                          title="Sao chép mã"
+                          className="text-zinc-500 hover:text-zinc-300 p-1 rounded"
+                        >
+                          {copiedCode === p.code ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                        </button>
+                      </div>
                     </td>
-                    <td className="p-3 font-semibold">{fmtVal(p)}</td>
-                    <td className="p-3 text-zinc-300">
+                    <td className="p-3.5 text-zinc-200 max-w-[200px] truncate" title={p.description || p.name}>
+                      {p.description || p.name || '—'}
+                    </td>
+                    <td className="p-3.5 text-zinc-300 whitespace-nowrap">
+                      {p.discountType === 'percent' || p.discountType === 'PERCENTAGE' ? (
+                        <span className="text-indigo-300 font-medium">Phần trăm (%)</span>
+                      ) : (
+                        <span className="text-amber-300 font-medium">Cố định (VNĐ)</span>
+                      )}
+                    </td>
+                    <td className="p-3.5 font-semibold text-emerald-400 whitespace-nowrap">{fmtVal(p)}</td>
+                    <td className="p-3.5 text-zinc-300 whitespace-nowrap">
                       {p.minOrderAmount && Number(p.minOrderAmount) > 0 ? formatCurrency(p.minOrderAmount) : '—'}
                     </td>
-                    <td className="p-3 text-zinc-300 whitespace-nowrap">{fmtDate(p.startDate)}</td>
-                    <td className="p-3 text-zinc-300 whitespace-nowrap">{fmtDate(p.endDate)}</td>
-                    <td className="p-3 text-zinc-300 whitespace-nowrap">
-                      {usedCount}
-                      {p.usageLimit != null ? ` / ${p.usageLimit}` : ' / ∞'}
+                    <td className="p-3.5 text-zinc-400 whitespace-nowrap text-xs">{fmtDate(p.startDate)}</td>
+                    <td className="p-3.5 text-zinc-400 whitespace-nowrap text-xs">{fmtDate(p.endDate)}</td>
+                    <td className="p-3.5 text-zinc-300 whitespace-nowrap">
+                      <span className="font-medium text-white">{usedCount}</span>
+                      <span className="text-zinc-500">{p.usageLimit != null ? ` / ${p.usageLimit}` : ' / ∞'}</span>
                     </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${PROMO_BADGE[st]}`}>
+                    <td className="p-3.5 whitespace-nowrap">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${PROMO_BADGE[st]}`}>
                         {PROMO_LABEL[st]}
                       </span>
                     </td>
-                    <td className="p-3">
+                    <td className="p-3.5 whitespace-nowrap">
                       <div className="flex gap-2">
                         {/* Edit */}
                         <button
                           disabled={saving}
                           onClick={() => openEdit(p)}
                           title="Chỉnh sửa"
-                          className="p-1.5 rounded bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50"
+                          className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition disabled:opacity-50"
                         >
                           <Pencil size={14} />
                         </button>
@@ -1606,8 +1781,12 @@ export const ManagePromotionsPage = () => {
                           <button
                             disabled={saving}
                             onClick={() => toggleStatus(p)}
-                            title={st === 'active' ? 'Khóa' : 'Mở khóa'}
-                            className={`p-1.5 rounded disabled:opacity-50 ${st === 'active' ? 'bg-red-700 hover:bg-red-600' : 'bg-emerald-700 hover:bg-emerald-600'}`}
+                            title={st === 'active' ? 'Tạm khóa mã' : 'Kích hoạt mã'}
+                            className={`p-1.5 rounded transition disabled:opacity-50 ${
+                              st === 'active'
+                                ? 'bg-amber-950/60 hover:bg-amber-800 border border-amber-700/60 text-amber-300'
+                                : 'bg-emerald-950/60 hover:bg-emerald-800 border border-emerald-700/60 text-emerald-300'
+                            }`}
                           >
                             {st === 'active' ? <Lock size={14} /> : <Unlock size={14} />}
                           </button>
@@ -1617,8 +1796,8 @@ export const ManagePromotionsPage = () => {
                           <button
                             disabled={saving}
                             onClick={() => deletePromo(p)}
-                            title="Xóa"
-                            className="p-1.5 rounded bg-zinc-700 hover:bg-red-700 disabled:opacity-50"
+                            title="Xóa khuyến mãi"
+                            className="p-1.5 rounded bg-zinc-800 hover:bg-red-700 text-zinc-400 hover:text-white transition disabled:opacity-50"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1628,9 +1807,13 @@ export const ManagePromotionsPage = () => {
                   </tr>
                 );
               })}
-              {!promotions.length && (
+              {!filteredPromotions.length && (
                 <tr>
-                  <td colSpan="10" className="p-6 text-zinc-400 text-center">Chưa có chương trình khuyến mãi nào.</td>
+                  <td colSpan="10" className="p-8 text-zinc-500 text-center">
+                    {promotions.length === 0
+                      ? 'Chưa có chương trình khuyến mãi nào. Hãy nhấn "+ Thêm khuyến mãi" để tạo mã mới.'
+                      : 'Không tìm thấy chương trình khuyến mãi nào phù hợp với bộ lọc.'}
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -1648,11 +1831,14 @@ export const ManageBookingsPage = () => {
   const [bookings, setBookings] = useState([]);
   const [bookingLoading, setBookingLoading] = useState(true);
   const [bookingError, setBookingError] = useState('');
+  const [bookingNotice, setBookingNotice] = useState('');
   const [bookingPage, setBookingPage] = useState(0);
   const [bookingTotalPages, setBookingTotalPages] = useState(1);
   const [bookingSearch, setBookingSearch] = useState('');
   const [bookingStatus, setBookingStatus] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [bookingSummary, setBookingSummary] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Payments state
   const [payments, setPayments] = useState([]);
@@ -1671,6 +1857,9 @@ export const ManageBookingsPage = () => {
       setBookings(data?.content || []);
       setBookingTotalPages(data?.totalPages || 1);
       setBookingPage(page);
+      if (data?.summary) {
+        setBookingSummary(data.summary);
+      }
     } catch (err) {
       setBookingError(errorMessage(err));
     } finally {
@@ -1707,6 +1896,72 @@ export const ManageBookingsPage = () => {
     fetchBookings(0, bookingStatus, bookingSearch);
   };
 
+  // Xác nhận thanh toán tại quầy
+  const handleConfirmPayment = async (b) => {
+    const code = b.bookingCode || `#${b.id}`;
+    if (!window.confirm(`Xác nhận đơn "${code}" của khách "${b.customerName || 'Khách vãng lai'}" đã thanh toán tại quầy thành công?`)) return;
+    setActionLoading(true);
+    setBookingError('');
+    setBookingNotice('');
+    try {
+      await adminApi.confirmBookingPayment(b.id);
+      setBookingNotice(`Đã xác nhận thanh toán thành công cho đơn ${code}!`);
+      if (selectedBooking && selectedBooking.id === b.id) {
+        setSelectedBooking((prev) => ({ ...prev, status: 'PAID' }));
+      }
+      fetchBookings(bookingPage, bookingStatus, bookingSearch);
+    } catch (err) {
+      setBookingError(errorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Hủy đơn vé & nhả ghế
+  const handleCancelBooking = async (b) => {
+    const code = b.bookingCode || `#${b.id}`;
+    if (!window.confirm(`Bạn có chắc muốn HỦY đơn đặt vé "${code}"? Tất cả ghế trong đơn sẽ được hoàn trả lại rạp.`)) return;
+    setActionLoading(true);
+    setBookingError('');
+    setBookingNotice('');
+    try {
+      await adminApi.cancelAdminBooking(b.id, 'Hủy bởi quản trị viên');
+      setBookingNotice(`Đã hủy đơn ${code} và mở lại ghế thành công!`);
+      if (selectedBooking && selectedBooking.id === b.id) {
+        setSelectedBooking((prev) => ({ ...prev, status: 'CANCELLED' }));
+      }
+      fetchBookings(bookingPage, bookingStatus, bookingSearch);
+    } catch (err) {
+      setBookingError(errorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Soát vé trực tiếp
+  const handleCheckInTicket = async (ticketId) => {
+    setActionLoading(true);
+    setBookingError('');
+    setBookingNotice('');
+    try {
+      const res = await adminApi.checkInTicket(ticketId);
+      const data = dataOf(res);
+      setBookingNotice('Soát vé thành công!');
+      // Cập nhật trạng thái vé trong modal
+      if (selectedBooking) {
+        const updatedTickets = (selectedBooking.tickets || []).map((t) =>
+          t.id === ticketId ? { ...t, status: 'checked_in', checkedInAt: data?.checkedInAt || new Date().toISOString() } : t
+        );
+        setSelectedBooking({ ...selectedBooking, tickets: updatedTickets });
+      }
+      fetchBookings(bookingPage, bookingStatus, bookingSearch);
+    } catch (err) {
+      setBookingError(errorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const statusBadge = (st) => {
     const s = (st || '').toUpperCase();
     if (s === 'PAID' || s === 'SUCCESS' || s === 'COMPLETED') {
@@ -1716,17 +1971,31 @@ export const ManageBookingsPage = () => {
       return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-950/80 text-amber-400 border border-amber-800">Chờ thanh toán</span>;
     }
     if (s === 'CANCELLED' || s === 'FAILED') {
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-950/80 text-red-400 border border-red-800">Đã hủy / Thất bại</span>;
+      return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-950/80 text-red-400 border border-red-800">Đã hủy</span>;
     }
     return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">{st}</span>;
+  };
+
+  const ticketStatusBadge = (st) => {
+    const s = (st || '').toLowerCase();
+    if (s === 'checked_in' || s === 'used') {
+      return <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800">Đã soát vé</span>;
+    }
+    if (s === 'cancelled') {
+      return <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-red-950/80 text-red-400 border border-red-800">Đã hủy</span>;
+    }
+    return <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-950/80 text-cyan-400 border border-cyan-800">Hợp lệ</span>;
   };
 
   return (
     <div className="space-y-6 text-zinc-100">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-wide">QUẢN LÝ ĐƠN HÀNG & GIAO DỊCH</h1>
-          <p className="text-xs text-zinc-400 mt-1">Theo dõi các đơn đặt vé và lịch sử giao dịch thanh toán</p>
+          <h1 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-red-500" />
+            QUẢN LÝ ĐƠN HÀNG & GIAO DỊCH
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">Theo dõi, xác nhận thanh toán tại quầy, hủy vé và quản lý giao dịch</p>
         </div>
         <div className="flex bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
           <button
@@ -1751,6 +2020,47 @@ export const ManageBookingsPage = () => {
       {/* ===================== TAB 1: BOOKINGS ===================== */}
       {tab === 'bookings' && (
         <div className="space-y-5">
+          {/* Summary KPI Cards */}
+          {bookingSummary && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+                <span className="text-xs text-zinc-400">Tổng số đơn</span>
+                <div className="text-2xl font-bold text-white mt-1">{bookingSummary.totalOrders}</div>
+              </div>
+              <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+                <span className="text-xs text-emerald-400 font-medium">Đã thanh toán (PAID)</span>
+                <div className="text-2xl font-bold text-emerald-400 mt-1">{bookingSummary.paidOrders}</div>
+                {bookingSummary.totalRevenue != null && (
+                  <span className="text-xs text-emerald-300/80 block mt-0.5">
+                    {formatCurrency(bookingSummary.totalRevenue)}
+                  </span>
+                )}
+              </div>
+              <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+                <span className="text-xs text-amber-400 font-medium">Chờ thanh toán</span>
+                <div className="text-2xl font-bold text-amber-400 mt-1">{bookingSummary.pendingOrders}</div>
+              </div>
+              <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl">
+                <span className="text-xs text-red-400 font-medium">Đã hủy</span>
+                <div className="text-2xl font-bold text-red-400 mt-1">{bookingSummary.cancelledOrders}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Alerts */}
+          {bookingError && (
+            <div className="p-3 bg-red-950/40 border border-red-800 rounded-xl text-red-300 text-sm flex items-center justify-between">
+              <span>{bookingError}</span>
+              <button onClick={() => setBookingError('')} className="text-red-400 hover:text-white"><X size={14} /></button>
+            </div>
+          )}
+          {bookingNotice && (
+            <div className="p-3 bg-emerald-950/40 border border-emerald-800 rounded-xl text-emerald-300 text-sm flex items-center justify-between">
+              <span>{bookingNotice}</span>
+              <button onClick={() => setBookingNotice('')} className="text-emerald-400 hover:text-white"><X size={14} /></button>
+            </div>
+          )}
+
           {/* Filter & Search Bar */}
           <div className="bg-[#141414] border border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row gap-4 justify-between items-center">
             <form onSubmit={handleBookingSearchSubmit} className="flex-1 flex gap-2 w-full">
@@ -1758,13 +2068,13 @@ export const ManageBookingsPage = () => {
                 <Search className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
                 <input
                   type="text"
-                  placeholder="Tìm theo mã đơn, tên, email, số điện thoại..."
+                  placeholder="Tìm theo mã đơn, tên khách hàng, email, SĐT..."
                   value={bookingSearch}
                   onChange={(e) => setBookingSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-red-500"
                 />
               </div>
-              <button type="submit" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-sm font-medium rounded-lg text-white">
+              <button type="submit" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-sm font-medium rounded-lg text-white transition">
                 Tìm kiếm
               </button>
             </form>
@@ -1786,80 +2096,128 @@ export const ManageBookingsPage = () => {
               </select>
               <button
                 onClick={() => fetchBookings(bookingPage, bookingStatus, bookingSearch)}
-                className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg"
-                title="Làm mới"
+                className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition"
+                title="Làm mới danh sách"
               >
                 <RefreshCw className={`w-4 h-4 ${bookingLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
 
-          {bookingError && (
-            <div className="p-4 bg-red-900/30 border border-red-800 rounded-xl text-red-300 text-sm">
-              {bookingError}
-            </div>
-          )}
-
           {/* Bookings Table */}
-          <div className="bg-[#141414] border border-zinc-800 rounded-xl overflow-hidden">
+          <div className="bg-[#141414] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-zinc-900/80 text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
                   <tr>
-                    <th className="p-3.5">Mã Đơn</th>
-                    <th className="p-3.5">Khách Hàng</th>
-                    <th className="p-3.5">Phim & Rạp</th>
-                    <th className="p-3.5 text-center">Số Vé</th>
-                    <th className="p-3.5">Tổng Tiền</th>
-                    <th className="p-3.5">Trạng Thái</th>
-                    <th className="p-3.5">Ngày Đặt</th>
-                    <th className="p-3.5 text-right">Chi Tiết</th>
+                    <th className="p-3.5 whitespace-nowrap">Mã Đơn</th>
+                    <th className="p-3.5 whitespace-nowrap">Khách Hàng</th>
+                    <th className="p-3.5 whitespace-nowrap">Phim & Suất Chiếu</th>
+                    <th className="p-3.5 text-center whitespace-nowrap">Vé & Combo</th>
+                    <th className="p-3.5 whitespace-nowrap">Tổng Tiền</th>
+                    <th className="p-3.5 whitespace-nowrap">PTTT</th>
+                    <th className="p-3.5 whitespace-nowrap">Trạng Thái</th>
+                    <th className="p-3.5 whitespace-nowrap">Ngày Đặt</th>
+                    <th className="p-3.5 text-right whitespace-nowrap">Hành Động</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/80">
                   {bookingLoading ? (
                     <tr>
-                      <td colSpan="8" className="p-8 text-center text-zinc-400">
+                      <td colSpan="9" className="p-8 text-center text-zinc-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-red-500" />
                         Đang tải danh sách đơn đặt vé...
                       </td>
                     </tr>
                   ) : bookings.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="p-8 text-center text-zinc-500">
-                        Không tìm thấy đơn hàng nào phù hợp.
+                      <td colSpan="9" className="p-8 text-center text-zinc-500">
+                        Không tìm thấy đơn hàng nào phù hợp với bộ lọc.
                       </td>
                     </tr>
                   ) : (
-                    bookings.map((b) => (
-                      <tr key={b.id} className="hover:bg-zinc-900/40 transition">
-                        <td className="p-3.5 font-mono font-semibold text-red-400">{b.bookingCode || `#${b.id}`}</td>
-                        <td className="p-3.5">
-                          <div className="font-medium text-white">{b.customerName || 'Khách vãng lai'}</div>
-                          <div className="text-xs text-zinc-400">{b.customerPhone || b.customerEmail || ''}</div>
-                        </td>
-                        <td className="p-3.5">
-                          <div className="font-medium text-zinc-200 line-clamp-1">{b.movieTitle || 'N/A'}</div>
-                          <div className="text-xs text-zinc-400">
-                            {b.cinemaName ? `${b.cinemaName} · ` : ''}{b.hallName || ''}
-                            {b.startTime ? ` (${formatDateTime(b.startTime)})` : ''}
-                          </div>
-                        </td>
-                        <td className="p-3.5 text-center font-medium text-white">
-                          {b.ticketCount || (b.tickets ? b.tickets.length : 0)}
-                        </td>
-                        <td className="p-3.5 font-semibold text-emerald-400">{formatCurrency(b.finalAmount || 0)}</td>
-                        <td className="p-3.5">{statusBadge(b.status)}</td>
-                        <td className="p-3.5 text-xs text-zinc-400">{b.createdAt ? formatDateTime(b.createdAt) : ''}</td>
-                        <td className="p-3.5 text-right">
-                          <button
-                            onClick={() => setSelectedBooking(b)}
-                            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs rounded-lg text-zinc-200 inline-flex items-center gap-1.5 transition"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> Xem
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    bookings.map((b) => {
+                      const isPending = (b.status || '').toUpperCase() === 'PENDING' || (b.status || '').toUpperCase() === 'PENDING_PAYMENT';
+                      const isCancelled = (b.status || '').toUpperCase() === 'CANCELLED';
+                      const ticketCount = b.ticketCount || (b.tickets ? b.tickets.length : 0);
+                      const comboCount = b.comboCount || (b.combos ? b.combos.length : 0);
+
+                      return (
+                        <tr key={b.id} className="hover:bg-zinc-900/40 transition">
+                          <td className="p-3.5 font-mono font-bold text-red-400 whitespace-nowrap">
+                            {b.bookingCode || `#${b.id}`}
+                          </td>
+                          <td className="p-3.5">
+                            <div className="font-semibold text-white whitespace-nowrap">{b.customerName || 'Khách vãng lai'}</div>
+                            <div className="text-xs text-zinc-400 whitespace-nowrap">{b.customerPhone || b.customerEmail || '—'}</div>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="font-medium text-zinc-200 line-clamp-1">{b.movieTitle || '—'}</div>
+                            <div className="text-xs text-zinc-400 whitespace-nowrap">
+                              {b.cinemaName ? `${b.cinemaName} · ` : ''}{b.hallName || ''}
+                              {b.startTime ? ` (${formatDateTime(b.startTime)})` : ''}
+                            </div>
+                          </td>
+                          <td className="p-3.5 text-center whitespace-nowrap">
+                            <span className="font-semibold text-white">{ticketCount} vé</span>
+                            {comboCount > 0 && (
+                              <span className="text-xs text-amber-400 block">+{comboCount} combo</span>
+                            )}
+                          </td>
+                          <td className="p-3.5 font-semibold text-emerald-400 whitespace-nowrap">
+                            {formatCurrency(b.finalAmount || 0)}
+                            {b.discountAmount > 0 && (
+                              <span className="text-[11px] text-amber-400 font-normal block">
+                                Giảm: -{formatCurrency(b.discountAmount)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2 py-0.5 rounded text-xs font-semibold bg-zinc-800 border border-zinc-700 text-zinc-300">
+                              {b.paymentMethod === 'PAYPAL' ? 'PayPal' : 'Tại quầy'}
+                            </span>
+                          </td>
+                          <td className="p-3.5 whitespace-nowrap">{statusBadge(b.status)}</td>
+                          <td className="p-3.5 text-xs text-zinc-400 whitespace-nowrap">{b.createdAt ? formatDateTime(b.createdAt) : ''}</td>
+                          <td className="p-3.5 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Xem chi tiết */}
+                              <button
+                                onClick={() => setSelectedBooking(b)}
+                                className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs rounded-lg text-zinc-200 inline-flex items-center gap-1 transition"
+                                title="Xem chi tiết đơn"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> Xem
+                              </button>
+
+                              {/* Nút xác nhận thanh toán tại quầy nếu đang chờ */}
+                              {isPending && (
+                                <button
+                                  disabled={actionLoading}
+                                  onClick={() => handleConfirmPayment(b)}
+                                  className="px-2.5 py-1.5 bg-emerald-950/70 hover:bg-emerald-800 border border-emerald-700/60 text-xs rounded-lg text-emerald-300 inline-flex items-center gap-1 transition disabled:opacity-50"
+                                  title="Xác nhận khách đã thanh toán tại quầy"
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5" /> Thu tiền
+                                </button>
+                              )}
+
+                              {/* Nút hủy đơn nếu chưa hủy */}
+                              {!isCancelled && (
+                                <button
+                                  disabled={actionLoading}
+                                  onClick={() => handleCancelBooking(b)}
+                                  className="p-1.5 bg-zinc-800 hover:bg-red-800 text-zinc-400 hover:text-white text-xs rounded-lg transition disabled:opacity-50"
+                                  title="Hủy đơn vé & nhả ghế"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1875,14 +2233,14 @@ export const ManageBookingsPage = () => {
                   <button
                     disabled={bookingPage === 0 || bookingLoading}
                     onClick={() => fetchBookings(bookingPage - 1, bookingStatus, bookingSearch)}
-                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200"
+                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200 transition"
                   >
                     Trang trước
                   </button>
                   <button
                     disabled={bookingPage >= bookingTotalPages - 1 || bookingLoading}
                     onClick={() => fetchBookings(bookingPage + 1, bookingStatus, bookingSearch)}
-                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200"
+                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200 transition"
                   >
                     Trang tiếp
                   </button>
@@ -1916,7 +2274,7 @@ export const ManageBookingsPage = () => {
             </div>
             <button
               onClick={() => fetchPayments(paymentPage, paymentMethod)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs rounded-lg text-zinc-300"
+              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs rounded-lg text-zinc-300 transition"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${paymentLoading ? 'animate-spin' : ''}`} /> Tải lại giao dịch
             </button>
@@ -1929,7 +2287,7 @@ export const ManageBookingsPage = () => {
           )}
 
           {/* Payments Table */}
-          <div className="bg-[#141414] border border-zinc-800 rounded-xl overflow-hidden">
+          <div className="bg-[#141414] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-zinc-900/80 text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
@@ -1948,6 +2306,7 @@ export const ManageBookingsPage = () => {
                   {paymentLoading ? (
                     <tr>
                       <td colSpan="8" className="p-8 text-center text-zinc-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-red-500" />
                         Đang tải danh sách thanh toán...
                       </td>
                     </tr>
@@ -2000,14 +2359,14 @@ export const ManageBookingsPage = () => {
                   <button
                     disabled={paymentPage === 0 || paymentLoading}
                     onClick={() => fetchPayments(paymentPage - 1, paymentMethod)}
-                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200"
+                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200 transition"
                   >
                     Trang trước
                   </button>
                   <button
                     disabled={paymentPage >= paymentTotalPages - 1 || paymentLoading}
                     onClick={() => fetchPayments(paymentPage + 1, paymentMethod)}
-                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200"
+                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded text-zinc-200 transition"
                   >
                     Trang tiếp
                   </button>
@@ -2020,8 +2379,8 @@ export const ManageBookingsPage = () => {
 
       {/* ===================== MODAL CHI TIẾT ĐƠN HÀNG ===================== */}
       {selectedBooking && (
-        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
-          <div className="bg-[#181818] border border-zinc-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#181818] border border-zinc-700 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl">
             <div className="flex justify-between items-start border-b border-zinc-800 pb-4">
               <div>
                 <span className="text-xs uppercase tracking-wider text-red-500 font-bold">Chi Tiết Đơn Đặt Vé</span>
@@ -2031,14 +2390,14 @@ export const ManageBookingsPage = () => {
               </div>
               <button
                 onClick={() => setSelectedBooking(null)}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-4 text-sm bg-[#121212] p-4 rounded-xl border border-zinc-800">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm bg-[#121212] p-4 rounded-xl border border-zinc-800">
               <div>
                 <span className="text-zinc-500 text-xs block">Khách hàng</span>
                 <span className="font-semibold text-white">{selectedBooking.customerName || 'Khách vãng lai'}</span>
@@ -2046,6 +2405,10 @@ export const ManageBookingsPage = () => {
               <div>
                 <span className="text-zinc-500 text-xs block">Email / SĐT</span>
                 <span className="text-zinc-300">{selectedBooking.customerPhone || selectedBooking.customerEmail || '—'}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 text-xs block">Trạng thái</span>
+                <div className="mt-1">{statusBadge(selectedBooking.status)}</div>
               </div>
               <div>
                 <span className="text-zinc-500 text-xs block">Phim</span>
@@ -2064,8 +2427,22 @@ export const ManageBookingsPage = () => {
                 </span>
               </div>
               <div>
-                <span className="text-zinc-500 text-xs block">Trạng thái</span>
-                <div className="mt-1">{statusBadge(selectedBooking.status)}</div>
+                <span className="text-zinc-500 text-xs block">Phương thức thanh toán</span>
+                <span className="font-semibold text-zinc-200">
+                  {selectedBooking.paymentMethod === 'PAYPAL' ? 'PayPal Online' : 'Thanh toán tại quầy'}
+                </span>
+              </div>
+              {selectedBooking.promotionCode && (
+                <div>
+                  <span className="text-zinc-500 text-xs block">Voucher đã dùng</span>
+                  <span className="font-mono font-bold text-amber-300">{selectedBooking.promotionCode}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-zinc-500 text-xs block">Thời gian đặt</span>
+                <span className="text-zinc-400 text-xs">
+                  {selectedBooking.createdAt ? formatDateTime(selectedBooking.createdAt) : '—'}
+                </span>
               </div>
             </div>
 
@@ -2082,52 +2459,134 @@ export const ManageBookingsPage = () => {
                       <th className="p-3">Vị Trí Ghế</th>
                       <th className="p-3">Loại Ghế</th>
                       <th className="p-3">Giá Vé</th>
-                      <th className="p-3 text-right">Trạng Thái</th>
+                      <th className="p-3">Trạng Thái</th>
+                      <th className="p-3 text-right">Soát Vé</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800">
-                    {(selectedBooking.tickets || []).map((t) => (
-                      <tr key={t.id} className="hover:bg-zinc-900/50">
-                        <td className="p-3 font-mono font-medium text-red-400">{t.ticketCode}</td>
-                        <td className="p-3 font-bold text-white">{t.seatLabel || `${t.seatRow}${t.seatCol}`}</td>
-                        <td className="p-3 text-zinc-300">{t.seatType || 'Thường'}</td>
-                        <td className="p-3 font-medium text-emerald-400">{formatCurrency(t.price || 0)}</td>
-                        <td className="p-3 text-right">
-                          <span className="px-2 py-0.5 rounded text-[11px] bg-zinc-800 text-zinc-300">
-                            {t.status || 'valid'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {(selectedBooking.tickets || []).map((t) => {
+                      const isCheckedIn = (t.status || '').toLowerCase() === 'checked_in' || (t.status || '').toLowerCase() === 'used';
+                      const isCancelled = (t.status || '').toLowerCase() === 'cancelled';
+
+                      return (
+                        <tr key={t.id} className="hover:bg-zinc-900/50 transition">
+                          <td className="p-3 font-mono font-medium text-red-400">{t.ticketCode}</td>
+                          <td className="p-3 font-bold text-white">{t.seatLabel || `${t.seatRow}${t.seatCol}`}</td>
+                          <td className="p-3 text-zinc-300">{t.seatType || 'Thường'}</td>
+                          <td className="p-3 font-medium text-emerald-400">{formatCurrency(t.price || 0)}</td>
+                          <td className="p-3">
+                            {ticketStatusBadge(t.status)}
+                            {t.checkedInAt && (
+                              <span className="text-[10px] text-zinc-500 block mt-0.5">
+                                {formatDateTime(t.checkedInAt)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            {!isCheckedIn && !isCancelled && (
+                              <button
+                                disabled={actionLoading}
+                                onClick={() => handleCheckInTicket(t.id)}
+                                className="px-2.5 py-1 bg-emerald-950/80 hover:bg-emerald-800 border border-emerald-700/60 text-emerald-300 rounded text-[11px] font-semibold transition disabled:opacity-50 inline-flex items-center gap-1"
+                              >
+                                <Check size={12} /> Soát vé
+                              </button>
+                            )}
+                            {isCheckedIn && (
+                              <span className="text-zinc-500 text-xs inline-flex items-center gap-1">
+                                <CheckCircle size={13} className="text-emerald-500" /> Đã vào rạp
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Total Summary */}
-            <div className="border-t border-zinc-800 pt-4 flex justify-between items-center text-sm">
+            {/* Combos List (nếu có) */}
+            {selectedBooking.combos && selectedBooking.combos.length > 0 && (
               <div>
-                {selectedBooking.discountAmount > 0 && (
-                  <span className="text-xs text-amber-400 block">
-                    Giảm giá: -{formatCurrency(selectedBooking.discountAmount)}
-                  </span>
+                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-amber-500" /> Combo Bắp Nước ({selectedBooking.combos.length})
+                </h3>
+                <div className="border border-zinc-800 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-zinc-900 text-zinc-400 border-b border-zinc-800">
+                      <tr>
+                        <th className="p-3">Tên Combo</th>
+                        <th className="p-3 text-center">Số Lượng</th>
+                        <th className="p-3">Đơn Giá</th>
+                        <th className="p-3 text-right">Thành Tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800">
+                      {selectedBooking.combos.map((c, idx) => (
+                        <tr key={c.id || idx} className="hover:bg-zinc-900/50">
+                          <td className="p-3 font-medium text-white">{c.comboName}</td>
+                          <td className="p-3 text-center font-bold text-amber-400">{c.quantity}</td>
+                          <td className="p-3 text-zinc-300">{formatCurrency(c.unitPrice || 0)}</td>
+                          <td className="p-3 text-right font-semibold text-emerald-400">
+                            {formatCurrency(c.totalPrice || (c.unitPrice * c.quantity) || 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Total Summary */}
+            <div className="border-t border-zinc-800 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-sm bg-zinc-900/60 p-4 rounded-xl">
+              <div className="space-y-1 text-xs text-zinc-400">
+                {selectedBooking.seatAmount != null && (
+                  <div>Tiền vé: <span className="text-zinc-200 font-medium">{formatCurrency(selectedBooking.seatAmount)}</span></div>
                 )}
-                <span className="text-xs text-zinc-400">
-                  Thời gian đặt: {selectedBooking.createdAt ? formatDateTime(selectedBooking.createdAt) : '—'}
-                </span>
+                {selectedBooking.comboAmount != null && selectedBooking.comboAmount > 0 && (
+                  <div>Tiền bắp nước: <span className="text-zinc-200 font-medium">{formatCurrency(selectedBooking.comboAmount)}</span></div>
+                )}
+                {selectedBooking.discountAmount != null && selectedBooking.discountAmount > 0 && (
+                  <div className="text-amber-400">Giảm giá voucher: -{formatCurrency(selectedBooking.discountAmount)}</div>
+                )}
               </div>
               <div className="text-right">
                 <span className="text-xs text-zinc-400 block">Tổng thanh toán:</span>
-                <span className="text-xl font-bold text-emerald-400">
+                <span className="text-2xl font-black text-emerald-400">
                   {formatCurrency(selectedBooking.finalAmount || 0)}
                 </span>
               </div>
             </div>
 
-            <div className="pt-2">
+            {/* Actions in Modal */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              {/* Nếu đơn đang chờ thanh toán -> Nút xác nhận thanh toán */}
+              {((selectedBooking.status || '').toUpperCase() === 'PENDING' || (selectedBooking.status || '').toUpperCase() === 'PENDING_PAYMENT') && (
+                <button
+                  disabled={actionLoading}
+                  onClick={() => handleConfirmPayment(selectedBooking)}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-sm font-bold rounded-xl text-white transition flex items-center justify-center gap-2 disabled:opacity-50 shadow"
+                >
+                  <CheckCircle size={16} /> Xác nhận đã thu tiền tại quầy
+                </button>
+              )}
+
+              {/* Nếu đơn chưa hủy -> Nút hủy đơn */}
+              {(selectedBooking.status || '').toUpperCase() !== 'CANCELLED' && (
+                <button
+                  disabled={actionLoading}
+                  onClick={() => handleCancelBooking(selectedBooking)}
+                  className="py-2.5 px-4 bg-red-950/70 hover:bg-red-800 border border-red-700/60 text-sm font-semibold rounded-xl text-red-300 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <XCircle size={16} /> Hủy đơn vé này
+                </button>
+              )}
+
               <button
                 onClick={() => setSelectedBooking(null)}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold rounded-xl text-white transition"
+                className="py-2.5 px-6 bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold rounded-xl text-zinc-300 transition"
               >
                 Đóng
               </button>
